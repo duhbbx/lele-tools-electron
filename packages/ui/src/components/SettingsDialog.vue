@@ -1,9 +1,27 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+import { testAiProvider } from '../ai'
 import { LOCALE_LABEL, t } from '../i18n'
-import { settings } from '../settings'
+import { AI_PROVIDER_LABEL, AI_PROVIDER_ORDER, isLocalAiProvider, settings } from '../settings'
 
 defineProps<{ open: boolean }>()
 const emit = defineEmits<{ close: [] }>()
+
+const testing = ref(false)
+const testResult = ref('')
+
+async function runTest(): Promise<void> {
+  testing.value = true
+  testResult.value = ''
+  try {
+    const r = await testAiProvider(settings.aiProvider, settings.aiProviders[settings.aiProvider])
+    testResult.value = r.ok ? `OK: ${t('settings.ai.testOk')}` : (r.message ?? 'failed')
+  } catch (e) {
+    testResult.value = e instanceof Error ? e.message : String(e)
+  } finally {
+    testing.value = false
+  }
+}
 </script>
 
 <template>
@@ -25,7 +43,34 @@ const emit = defineEmits<{ close: [] }>()
           <option value="light">{{ t('settings.theme.light') }}</option>
         </select>
       </label>
-      <!-- Task 10 在这里追加 AI provider 配置区 -->
+      <h4>{{ t('settings.ai') }}</h4>
+      <label class="field">
+        <span>{{ t('settings.ai.provider') }}</span>
+        <select v-model="settings.aiProvider" class="select">
+          <option v-for="p in AI_PROVIDER_ORDER" :key="p" :value="p">{{ AI_PROVIDER_LABEL[p] }}</option>
+        </select>
+      </label>
+      <label v-if="!isLocalAiProvider(settings.aiProvider)" class="field">
+        <span>{{ t('settings.ai.apiKey') }}</span>
+        <input v-model="settings.aiProviders[settings.aiProvider].apiKey" class="input" type="password" />
+      </label>
+      <label class="field">
+        <span>{{ t('settings.ai.model') }}</span>
+        <input v-model="settings.aiProviders[settings.aiProvider].model" class="input" />
+      </label>
+      <label class="field">
+        <span>{{ t('settings.ai.baseUrl') }}</span>
+        <input v-model="settings.aiProviders[settings.aiProvider].baseUrl" class="input" />
+      </label>
+      <div class="field">
+        <span />
+        <button class="btn" :disabled="testing" @click="runTest">
+          {{ testing ? '…' : t('settings.ai.test') }}
+        </button>
+      </div>
+      <p v-if="testResult" :class="testResult.startsWith('OK') ? 'hint' : 'error'" style="font-size: 12px">
+        {{ testResult }}
+      </p>
       <div class="foot">
         <button class="btn" @click="emit('close')">{{ t('common.close') }}</button>
       </div>

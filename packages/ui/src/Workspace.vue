@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { type Component, ref, shallowRef } from 'vue'
+import { type Component, computed, ref, shallowRef } from 'vue'
 import { t } from './i18n'
 import { toolById } from './tools'
+import AiChatPanel from './components/AiChatPanel.vue'
+import SettingsDialog from './components/SettingsDialog.vue'
 import SideNav from './components/SideNav.vue'
 import ToolTabs from './components/ToolTabs.vue'
-import SettingsDialog from './components/SettingsDialog.vue'
 
 const tabs = ref<string[]>([])
 const active = ref<string | null>(null)
@@ -12,6 +13,12 @@ const active = ref<string | null>(null)
 const comps = shallowRef<Record<string, Component>>({})
 const navRef = ref<InstanceType<typeof SideNav>>()
 const showSettings = ref(false)
+const showAi = ref(false)
+
+const toolContext = computed(() => {
+  const meta = active.value ? toolById(active.value) : null
+  return meta ? `User is on tool "${meta.name.en} / ${meta.name.zh}"` : undefined
+})
 
 async function open(id: string): Promise<void> {
   const meta = toolById(id)
@@ -32,10 +39,13 @@ function close(id: string): void {
 </script>
 
 <template>
-  <div class="workspace">
+  <div class="workspace" :class="{ 'with-ai': showAi }">
     <SideNav ref="navRef" @open="open" @settings="showSettings = true" />
     <div class="main">
-      <ToolTabs :tabs="tabs" :active="active" @activate="active = $event" @close="close" />
+      <div class="tabbar-row">
+        <ToolTabs class="grow" :tabs="tabs" :active="active" @activate="active = $event" @close="close" />
+        <button class="btn ai-toggle" @click="showAi = !showAi">🤖</button>
+      </div>
       <div class="body">
         <div v-if="!tabs.length" class="welcome">{{ t('welcome.hint') }}</div>
         <div v-for="id in tabs" v-show="id === active" :key="id" class="pane">
@@ -43,6 +53,7 @@ function close(id: string): void {
         </div>
       </div>
     </div>
+    <AiChatPanel v-if="showAi" :tool-context="toolContext" @close="showAi = false" />
     <SettingsDialog :open="showSettings" @close="showSettings = false" />
   </div>
 </template>
@@ -52,7 +63,9 @@ function close(id: string): void {
   display: grid;
   grid-template-columns: 240px 1fr;
   height: 100%;
+  &.with-ai { grid-template-columns: 240px 1fr 340px; }
   .main { display: flex; flex-direction: column; min-width: 0; }
+  .tabbar-row { display: flex; align-items: stretch; .grow { flex: 1; min-width: 0; } .ai-toggle { margin: 6px 8px 0; } }
   .body { flex: 1; min-height: 0; position: relative; }
   .pane { height: 100%; }
   .welcome {
