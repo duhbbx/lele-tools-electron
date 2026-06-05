@@ -1,22 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { CATEGORY_LABEL, CATEGORY_ORDER } from '../registry'
 import { locale, t } from '../i18n'
-import { TOOLS, toolById } from '../tools'
+import { TOOLS } from '../tools'
 
 const emit = defineEmits<{ open: [toolId: string] }>()
 
 const query = ref('')
-const recents = ref<string[]>([])
-
-onMounted(async () => {
-  recents.value = (await window.api?.recents?.list?.(6)) ?? []
-})
-/** Workspace 打开工具后调用，刷新最近使用 */
-async function refreshRecents(): Promise<void> {
-  recents.value = (await window.api?.recents?.list?.(6)) ?? []
-}
-defineExpose({ refreshRecents })
 
 const filtered = computed(() => {
   const q = query.value.trim().toLowerCase()
@@ -42,17 +32,6 @@ const grouped = computed(() =>
   <nav class="side-nav">
     <input v-model="query" class="input search" :placeholder="t('nav.search')" />
     <div class="scroll">
-      <template v-if="!query && recents.length">
-        <div class="cat">{{ t('nav.recent') }}</div>
-        <button
-          v-for="id in recents"
-          :key="'r-' + id"
-          class="item"
-          @click="emit('open', id)"
-        >
-          <span class="icon">{{ toolById(id)?.icon }}</span>{{ toolById(id)?.name[locale] ?? id }}
-        </button>
-      </template>
       <template v-for="g in grouped" :key="g.cat">
         <div class="cat">{{ g.label }}</div>
         <button v-for="m in g.tools" :key="m.id" class="item" :title="m.desc[locale]" @click="emit('open', m.id)">

@@ -11,7 +11,6 @@ const tabs = ref<string[]>([])
 const active = ref<string | null>(null)
 /** toolId → 已加载的组件（异步 load 完成后填充） */
 const comps = shallowRef<Record<string, Component>>({})
-const navRef = ref<InstanceType<typeof SideNav>>()
 const showSettings = ref(false)
 const showAi = ref(false)
 
@@ -35,7 +34,7 @@ async function open(id: string): Promise<void> {
   }
   if (!tabs.value.includes(id)) tabs.value = [...tabs.value, id]
   active.value = id
-  void window.api?.recents?.touch?.(id).then(() => navRef.value?.refreshRecents())
+  void window.api?.recents?.touch?.(id)
 }
 
 function close(id: string): void {
@@ -56,7 +55,7 @@ function reorder(fromId: string, toId: string): void {
 
 <template>
   <div class="workspace" :class="{ 'with-ai': showAi }">
-    <SideNav ref="navRef" @open="open" />
+    <SideNav @open="open" />
     <div class="main">
       <div class="tabbar-row">
         <ToolTabs class="grow" :tabs="tabs" :active="active" @activate="active = $event" @close="close" @reorder="reorder" />
