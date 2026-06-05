@@ -12,6 +12,9 @@
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
+    "dev:website": "pnpm --filter @lele/website dev",
+    "build:website": "pnpm --filter @lele/website build",
+    "preview:website": "pnpm --filter @lele/website preview",
     "lint": "biome lint .",
     "format": "biome format --write ."
   },
