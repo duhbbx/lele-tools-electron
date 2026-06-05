@@ -74,6 +74,7 @@ function stop(): void {
 }
 
 async function clearAll(): Promise<void> {
+  abort?.abort()
   messages.value = []
   await window.api?.chats?.clear?.()
 }

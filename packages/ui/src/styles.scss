@@ -56,6 +56,9 @@ body {
 }
 .textarea { resize: vertical; font-family: ui-monospace, Menlo, Consolas, monospace; }
 
+.hint { color: var(--fg-dim); font-size: 12px; }
+.error { color: var(--danger); font-size: 12px; white-space: pre-wrap; }
+
 .tool-page {
   height: 100%;
   display: flex;
@@ -65,6 +68,4 @@ body {
   overflow: auto;
   .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .grow { flex: 1; }
-  .hint { color: var(--fg-dim); font-size: 12px; }
-  .error { color: var(--danger); font-size: 12px; white-space: pre-wrap; }
 }
