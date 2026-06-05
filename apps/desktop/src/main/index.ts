@@ -1,5 +1,7 @@
 import { join } from 'node:path'
 import { BrowserWindow, app, shell } from 'electron'
+import { closeDb } from './db/sqlite'
+import { registerStoreIpc } from './ipc/store'
 
 const isDev = !app.isPackaged
 
@@ -31,6 +33,7 @@ function createWindow(): BrowserWindow {
 }
 
 app.whenReady().then(() => {
+  registerStoreIpc()
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -38,5 +41,6 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
+  closeDb()
   if (process.platform !== 'darwin') app.quit()
 })
