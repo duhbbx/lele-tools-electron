@@ -2,6 +2,8 @@
 
 > ⏳ 首个正式版本正在准备中。可先从源码构建，或关注 [GitHub Releases](https://github.com/duhbbx/lele-tools-electron/releases) 获取后续版本。
 
+<DownloadMatrix />
+
 ## 支持平台
 
 | 平台 | 格式 |
