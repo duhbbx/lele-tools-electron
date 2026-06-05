@@ -7,7 +7,7 @@
 App 没有通过苹果公证（公证一年需要 99 美元，开源项目不值得）。在终端运行一次即可：
 
 ```bash
-xattr -dr com.apple.quarantine /Applications/乐乐的工具箱.app
+xattr -dr com.apple.quarantine "/Applications/Lele Tools.app"
 ```
 
 或者：右键 → 打开 → 仍要打开。这是一次性操作，之后直接双击正常启动。
