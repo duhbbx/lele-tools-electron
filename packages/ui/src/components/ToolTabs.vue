@@ -14,7 +14,7 @@ const emit = defineEmits<{ activate: [id: string]; close: [id: string] }>()
       class="tab"
       :class="{ active: id === active }"
       @click="emit('activate', id)"
-      @click.middle="emit('close', id)"
+      @auxclick.middle="emit('close', id)"
     >
       <span>{{ toolById(id)?.icon }} {{ toolById(id)?.name[locale] ?? id }}</span>
       <button class="x" :title="t('tabs.close')" @click.stop="emit('close', id)">×</button>

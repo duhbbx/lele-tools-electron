@@ -15,13 +15,11 @@ const showSettings = ref(false)
 async function open(id: string): Promise<void> {
   const meta = toolById(id)
   if (!meta) return
-  if (!tabs.value.includes(id)) {
-    if (!comps.value[id]) {
-      const mod = await meta.load()
-      comps.value = { ...comps.value, [id]: mod.default }
-    }
-    tabs.value = [...tabs.value, id]
+  if (!comps.value[id]) {
+    const mod = await meta.load()
+    comps.value = { ...comps.value, [id]: mod.default }
   }
+  if (!tabs.value.includes(id)) tabs.value = [...tabs.value, id]
   active.value = id
   void window.api?.recents?.touch?.(id).then(() => navRef.value?.refreshRecents())
 }
