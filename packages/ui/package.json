@@ -11,7 +11,7 @@
   },
   "scripts": {
     "typecheck": "vue-tsc --noEmit -p tsconfig.json",
-    "test": "vitest run"
+    "test": "pnpm -w run test packages/ui"
   },
   "dependencies": {
     "@lele/shared-types": "workspace:*",

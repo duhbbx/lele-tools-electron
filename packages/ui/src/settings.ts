@@ -87,7 +87,7 @@ export function isActiveAiConfigured(): boolean {
 let hydrated = false
 /** 启动后从 SQLite 拉真源；SQLite 为空则把当前（localStorage/默认）推一份过去。 */
 export async function hydrateSettings(): Promise<void> {
-  const bridge = window.api?.store
+  const bridge = typeof window !== 'undefined' ? window.api?.store : undefined
   if (!bridge || hydrated) return
   hydrated = true
   try {
@@ -113,7 +113,7 @@ watch(
     try {
       localStorage.setItem(KEY, json)
     } catch {}
-    void window.api?.store?.set(KEY, json)
+    if (typeof window !== 'undefined') void window.api?.store?.set(KEY, json)
     if (settings.locale !== locale.value) locale.value = settings.locale
     applyTheme()
   },
@@ -128,7 +128,7 @@ media?.addEventListener('change', () => applyTheme())
 export function applyTheme(): void {
   const mode = settings.theme === 'system' ? (media?.matches !== false ? 'dark' : 'light') : settings.theme
   resolvedTheme.value = mode
-  document.documentElement.dataset.theme = mode
+  if (typeof document !== 'undefined') document.documentElement.dataset.theme = mode
 }
 
 /** 应用启动时调用一次：同步 locale + 主题 + 异步 hydrate。 */
