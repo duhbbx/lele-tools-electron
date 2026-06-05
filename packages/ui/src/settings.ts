@@ -92,7 +92,14 @@ export async function hydrateSettings(): Promise<void> {
   hydrated = true
   try {
     const raw = await bridge.get(KEY)
-    if (raw) Object.assign(settings, { ...settings, ...(JSON.parse(raw) as Partial<Settings>) })
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<Settings>
+      Object.assign(settings, {
+        ...settings,
+        ...parsed,
+        aiProviders: { ...settings.aiProviders, ...(parsed.aiProviders ?? {}) },
+      })
+    }
     else await bridge.set(KEY, JSON.stringify(settings))
   } catch (e) {
     console.warn('[settings] hydrate failed', e)
