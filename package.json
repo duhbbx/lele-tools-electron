@@ -1,0 +1,26 @@
+{
+  "name": "lele-tools-electron",
+  "version": "0.1.0",
+  "private": true,
+  "description": "乐乐的工具箱 — Electron 版跨平台开发者工具集",
+  "packageManager": "pnpm@10.26.2",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "pnpm --filter @lele/desktop dev",
+    "build": "pnpm --filter @lele/desktop build",
+    "dist": "pnpm --filter @lele/desktop dist",
+    "typecheck": "pnpm -r typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "biome lint .",
+    "format": "biome format --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["electron", "esbuild", "better-sqlite3"]
+  }
+}
