@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import { BrowserWindow, app, shell } from 'electron'
 import { closeDb } from './db/sqlite'
+import { registerAiIpc } from './ipc/ai'
 import { registerStoreIpc } from './ipc/store'
 
 const isDev = !app.isPackaged
@@ -34,6 +35,7 @@ function createWindow(): BrowserWindow {
 
 app.whenReady().then(() => {
   registerStoreIpc()
+  registerAiIpc()
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

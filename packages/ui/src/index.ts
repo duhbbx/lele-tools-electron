@@ -14,3 +14,12 @@ export {
   resolvedTheme,
   settings,
 } from './settings'
+export {
+  type AiTestResult,
+  askAiChat,
+  askAiChatStream,
+  type ChatMessage,
+  type ChatOptions,
+  currentProvider,
+  testAiProvider,
+} from './ai'
