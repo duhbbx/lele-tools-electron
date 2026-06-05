@@ -72,6 +72,7 @@ function reorder(fromId: string, toId: string): void {
 .workspace {
   display: grid;
   grid-template-columns: 240px 1fr;
+  grid-template-rows: minmax(0, 1fr);
   height: 100%;
   &.with-ai { grid-template-columns: 240px 1fr 340px; }
   .main { display: flex; flex-direction: column; min-width: 0; }
