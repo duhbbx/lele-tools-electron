@@ -5,7 +5,13 @@ export const LOCALE_LABEL: Record<Locale, string> = { zh: '简体中文', en: 'E
 
 export const locale = ref<Locale>('zh')
 export function setLocale(l: Locale): void {
+  const prev = locale.value
   locale.value = l
+  // 同步切 Monaco NLS：对「未来新打开」的编辑器立刻生效；
+  // 已渲染编辑器的内置菜单 label 由 Monaco 在模块加载期已缓存，需要刷新窗口才能完整跟随。
+  if (prev !== l) {
+    void import('./monaco-nls').then((m) => m.applyMonacoLocale(l))
+  }
 }
 
 /** 壳层文案字典；工具名/描述不在这里（见 registry.ts ToolMeta.name）。 */

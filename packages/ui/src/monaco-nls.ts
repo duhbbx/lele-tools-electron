@@ -45,9 +45,16 @@ export function applyMonacoLocale(locale: 'zh' | 'en'): void {
 }
 
 // On module load, decide NLS based on saved locale in localStorage.
-// Defaults to 'zh' (main user base is Chinese; user switching to English writes localStorage).
+// Locale is stored inside the 'lele.settings' JSON blob (field `locale`).
+// Defaults to 'zh' (main user base is Chinese; user switching to English writes the blob).
 try {
-  const saved = typeof localStorage !== 'undefined' ? localStorage.getItem('lele.locale') : null
+  const saved = (() => {
+    try {
+      return (JSON.parse(localStorage.getItem('lele.settings') ?? '{}') as { locale?: string }).locale ?? null
+    } catch {
+      return null
+    }
+  })()
   let pick: 'zh' | 'en'
   if (saved === 'zh' || saved === 'en') pick = saved
   else pick = 'zh'
