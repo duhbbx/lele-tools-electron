@@ -56,10 +56,37 @@ export interface MenuBridge {
   onOpenSettings(cb: () => void): void
 }
 
+export interface GithubIssuePreview {
+  url: string
+  owner: string
+  repo: string
+  number: number
+  title: string
+  /** markdown body (may be empty string) */
+  body: string
+  state: 'open' | 'closed'
+  error?: string
+}
+
+export interface GithubRepoInfo {
+  fullName: string
+  private: boolean
+}
+
+export interface GithubBridge {
+  /** Fetch a single issue (title + body); on failure returns preview with error field, never rejects */
+  fetchIssue(url: string): Promise<GithubIssuePreview>
+  /** List repos owned by the authenticated gh user, sorted by pushed */
+  listOwnRepos(): Promise<GithubRepoInfo[]>
+  /** Create an issue in fullName (owner/repo); returns the new issue html_url + number */
+  createIssue(fullName: string, title: string, body: string): Promise<{ url: string; number: number }>
+}
+
 export interface WindowApi {
   ai: AiBridge
   store: StoreBridge
   recents: RecentsBridge
   chats: ChatsBridge
   menu: MenuBridge
+  github: GithubBridge
 }

@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import { BrowserWindow, app, shell } from 'electron'
 import { closeDb } from './db/sqlite'
 import { registerAiIpc } from './ipc/ai'
+import { registerGithubIpc } from './ipc/github'
 import { registerStoreIpc } from './ipc/store'
 import { setupMenu } from './menu'
 
@@ -38,6 +39,7 @@ app.whenReady().then(() => {
   setupMenu()
   registerStoreIpc()
   registerAiIpc()
+  registerGithubIpc()
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

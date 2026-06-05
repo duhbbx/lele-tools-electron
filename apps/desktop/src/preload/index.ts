@@ -56,6 +56,12 @@ const api: WindowApi = {
       ipcRenderer.on('menu:open-settings', () => cb())
     },
   },
+  github: {
+    fetchIssue: (url: string) => ipcRenderer.invoke('github:fetch-issue', url),
+    listOwnRepos: () => ipcRenderer.invoke('github:list-repos'),
+    createIssue: (fullName: string, title: string, body: string) =>
+      ipcRenderer.invoke('github:create-issue', fullName, title, body),
+  },
 }
 
 contextBridge.exposeInMainWorld('api', api)
