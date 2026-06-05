@@ -4,7 +4,7 @@ import { CATEGORY_LABEL, CATEGORY_ORDER } from '../registry'
 import { locale, t } from '../i18n'
 import { TOOLS, toolById } from '../tools'
 
-const emit = defineEmits<{ open: [toolId: string]; settings: [] }>()
+const emit = defineEmits<{ open: [toolId: string] }>()
 
 const query = ref('')
 const recents = ref<string[]>([])
@@ -40,10 +40,6 @@ const grouped = computed(() =>
 
 <template>
   <nav class="side-nav">
-    <div class="head">
-      <span class="title">{{ t('app.title') }}</span>
-      <button class="btn" :title="t('settings.title')" @click="emit('settings')">⚙</button>
-    </div>
     <input v-model="query" class="input search" :placeholder="t('nav.search')" />
     <div class="scroll">
       <template v-if="!query && recents.length">
@@ -74,14 +70,7 @@ const grouped = computed(() =>
   height: 100%;
   border-right: 1px solid var(--border);
   background: var(--bg-soft);
-  .head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 12px 6px;
-    .title { font-weight: 600; }
-  }
-  .search { margin: 4px 10px 8px; }
+  .search { margin: 10px 10px 8px; }
   .scroll { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 10px; }
   .cat {
     padding: 8px 12px 4px;

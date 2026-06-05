@@ -3,6 +3,7 @@ import { BrowserWindow, app, shell } from 'electron'
 import { closeDb } from './db/sqlite'
 import { registerAiIpc } from './ipc/ai'
 import { registerStoreIpc } from './ipc/store'
+import { setupMenu } from './menu'
 
 const isDev = !app.isPackaged
 
@@ -34,6 +35,7 @@ function createWindow(): BrowserWindow {
 }
 
 app.whenReady().then(() => {
+  setupMenu()
   registerStoreIpc()
   registerAiIpc()
   createWindow()

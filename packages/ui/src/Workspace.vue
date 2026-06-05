@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type Component, computed, ref, shallowRef } from 'vue'
+import { type Component, computed, onMounted, ref, shallowRef } from 'vue'
 import { t } from './i18n'
 import { toolById } from './tools'
 import AiChatPanel from './components/AiChatPanel.vue'
@@ -14,6 +14,12 @@ const comps = shallowRef<Record<string, Component>>({})
 const navRef = ref<InstanceType<typeof SideNav>>()
 const showSettings = ref(false)
 const showAi = ref(false)
+
+onMounted(() => {
+  window.api?.menu?.onOpenSettings?.(() => {
+    showSettings.value = true
+  })
+})
 
 const toolContext = computed(() => {
   const meta = active.value ? toolById(active.value) : null
@@ -50,7 +56,7 @@ function reorder(fromId: string, toId: string): void {
 
 <template>
   <div class="workspace" :class="{ 'with-ai': showAi }">
-    <SideNav ref="navRef" @open="open" @settings="showSettings = true" />
+    <SideNav ref="navRef" @open="open" />
     <div class="main">
       <div class="tabbar-row">
         <ToolTabs class="grow" :tabs="tabs" :active="active" @activate="active = $event" @close="close" @reorder="reorder" />

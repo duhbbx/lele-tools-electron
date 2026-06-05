@@ -52,9 +52,14 @@ export interface ChatsBridge {
   clear(): Promise<void>
 }
 
+export interface MenuBridge {
+  onOpenSettings(cb: () => void): void
+}
+
 export interface WindowApi {
   ai: AiBridge
   store: StoreBridge
   recents: RecentsBridge
   chats: ChatsBridge
+  menu: MenuBridge
 }

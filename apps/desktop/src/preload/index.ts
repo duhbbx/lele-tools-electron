@@ -51,6 +51,11 @@ const api: WindowApi = {
     append: (role, content) => ipcRenderer.invoke('chats:append', role, content),
     clear: () => ipcRenderer.invoke('chats:clear'),
   },
+  menu: {
+    onOpenSettings: (cb: () => void): void => {
+      ipcRenderer.on('menu:open-settings', () => cb())
+    },
+  },
 }
 
 contextBridge.exposeInMainWorld('api', api)
