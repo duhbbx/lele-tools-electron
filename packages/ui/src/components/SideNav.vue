@@ -82,7 +82,7 @@ const grouped = computed(() =>
     .title { font-weight: 600; }
   }
   .search { margin: 4px 10px 8px; }
-  .scroll { flex: 1; overflow-y: auto; padding-bottom: 10px; }
+  .scroll { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 10px; }
   .cat {
     padding: 8px 12px 4px;
     font-size: 11px;

@@ -125,7 +125,7 @@ function onKey(e: KeyboardEvent): void {
     border-bottom: 1px solid var(--border);
     .sp { flex: 1; }
   }
-  .list { flex: 1; overflow-y: auto; padding: 10px; }
+  .list { flex: 1; min-height: 0; overflow-y: auto; padding: 10px; }
   .msg {
     margin-bottom: 10px;
     &.user .raw {

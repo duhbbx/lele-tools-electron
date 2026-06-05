@@ -76,8 +76,8 @@ function reorder(fromId: string, toId: string): void {
   &.with-ai { grid-template-columns: 240px 1fr 340px; }
   .main { display: flex; flex-direction: column; min-width: 0; }
   .tabbar-row { display: flex; align-items: stretch; .grow { flex: 1; min-width: 0; } .ai-toggle { margin: 6px 8px 0; } }
-  .body { flex: 1; min-height: 0; position: relative; }
-  .pane { height: 100%; }
+  .body { flex: 1; min-height: 0; overflow: hidden; position: relative; }
+  .pane { height: 100%; overflow: hidden; }
   .welcome {
     display: grid;
     place-items: center;
