@@ -4,6 +4,7 @@ import { t } from './i18n'
 import { toolById } from './tools'
 import SideNav from './components/SideNav.vue'
 import ToolTabs from './components/ToolTabs.vue'
+import SettingsDialog from './components/SettingsDialog.vue'
 
 const tabs = ref<string[]>([])
 const active = ref<string | null>(null)
@@ -42,8 +43,7 @@ function close(id: string): void {
         </div>
       </div>
     </div>
-    <!-- showSettings used by Task 8 SettingsDialog; referenced here to satisfy typecheck -->
-    <span v-if="false">{{ showSettings }}</span>
+    <SettingsDialog :open="showSettings" @close="showSettings = false" />
   </div>
 </template>
 
