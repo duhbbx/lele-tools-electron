@@ -36,6 +36,16 @@ function close(id: string): void {
   tabs.value = tabs.value.filter((x) => x !== id)
   if (active.value === id) active.value = tabs.value[tabs.value.length - 1] ?? null
 }
+
+function reorder(fromId: string, toId: string): void {
+  const arr = [...tabs.value]
+  const fromIdx = arr.indexOf(fromId)
+  const toIdx = arr.indexOf(toId)
+  if (fromIdx === -1 || toIdx === -1) return
+  arr.splice(fromIdx, 1)
+  arr.splice(toIdx, 0, fromId)
+  tabs.value = arr
+}
 </script>
 
 <template>
@@ -43,7 +53,7 @@ function close(id: string): void {
     <SideNav ref="navRef" @open="open" @settings="showSettings = true" />
     <div class="main">
       <div class="tabbar-row">
-        <ToolTabs class="grow" :tabs="tabs" :active="active" @activate="active = $event" @close="close" />
+        <ToolTabs class="grow" :tabs="tabs" :active="active" @activate="active = $event" @close="close" @reorder="reorder" />
         <button class="btn ai-toggle" @click="showAi = !showAi">🤖</button>
       </div>
       <div class="body">

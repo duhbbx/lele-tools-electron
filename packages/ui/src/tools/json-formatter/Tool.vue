@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import MonacoEditor from '../../components/MonacoEditor.vue'
 import { t } from '../../i18n'
+import { copyText } from '../../clipboard'
 
 const text = ref('{\n  "hello": "lele"\n}')
 const error = ref('')
@@ -14,10 +15,6 @@ function run(indent: number): void {
     error.value = e instanceof Error ? e.message : String(e)
   }
 }
-
-async function copy(): Promise<void> {
-  await navigator.clipboard.writeText(text.value)
-}
 </script>
 
 <template>
@@ -26,7 +23,7 @@ async function copy(): Promise<void> {
       <button class="btn primary" @click="run(2)">格式化 (2)</button>
       <button class="btn" @click="run(4)">格式化 (4)</button>
       <button class="btn" @click="run(0)">压缩</button>
-      <button class="btn" @click="copy">{{ t('common.copy') }}</button>
+      <button class="btn" @click="copyText(text)">{{ t('common.copy') }}</button>
       <span class="error">{{ error }}</span>
     </div>
     <MonacoEditor v-model="text" language="json" class="grow" />
