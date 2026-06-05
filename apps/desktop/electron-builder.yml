@@ -1,0 +1,30 @@
+appId: com.duhbbx.leletools
+productName: Lele Tools
+directories:
+  buildResources: build
+  output: release
+files:
+  - out/**
+  - package.json
+asarUnpack:
+  - '**/*.node'
+npmRebuild: true
+
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - dmg
+    - zip
+win:
+  target:
+    - nsis
+    - zip
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+linux:
+  category: Utility
+  target:
+    - deb
+    - rpm
+    - AppImage
