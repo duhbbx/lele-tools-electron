@@ -7,3 +7,8 @@ release/
 .env.deploy
 .vitepress/dist/
 .vitepress/cache/
+.env
+*.db
+*.db-shm
+*.db-wal
+builder-debug.yml
