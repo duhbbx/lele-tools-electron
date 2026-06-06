@@ -37,11 +37,11 @@ async function save(): Promise<void> {
     const n = name.value.trim()
     let id: number | undefined
     if (props.entity === 'client') {
-      id = await window.api?.crm?.clients?.create?.(n, type.value)
+      id = await window.api?.crm?.clients?.create?.({ name: n, type: type.value })
     } else if (props.entity === 'contact') {
-      id = await window.api?.crm?.contacts?.create?.(clientId.value, n)
+      id = await window.api?.crm?.contacts?.create?.(clientId.value, { name: n })
     } else {
-      id = await window.api?.crm?.projects?.create?.(clientId.value, n)
+      id = await window.api?.crm?.projects?.create?.(clientId.value, { name: n })
     }
     if (id != null) emit('created', id, n)
   } catch (e) {

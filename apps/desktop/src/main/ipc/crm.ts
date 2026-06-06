@@ -16,13 +16,26 @@ export function registerCrmIpc(): void {
     s().clients.list(f),
   )
   ipcMain.handle('crm:clients:get', (_e, id: number) => s().clients.get(id))
-  ipcMain.handle('crm:clients:create', (_e, name: string, type: 'company' | 'person') =>
-    s().clients.create({ name, type, note: '' }),
+  ipcMain.handle(
+    'crm:clients:create',
+    (
+      _e,
+      c: {
+        name: string; type: 'company' | 'person'; note?: string; phone?: string; email?: string
+        legalPerson?: string; legalPersonPhone?: string; uscc?: string; regAddress?: string; establishedDate?: string
+      },
+    ) => s().clients.create(c),
   )
   ipcMain.handle(
     'crm:clients:update',
-    (_e, id: number, c: { name: string; type: 'company' | 'person'; note: string }) =>
-      s().clients.update(id, c),
+    (
+      _e,
+      id: number,
+      c: {
+        name: string; type: 'company' | 'person'; note: string; phone: string; email: string
+        legalPerson: string; legalPersonPhone: string; uscc: string; regAddress: string; establishedDate: string
+      },
+    ) => s().clients.update(id, c),
   )
   ipcMain.handle('crm:clients:remove', (_e, id: number) => s().clients.remove(id))
 
@@ -34,15 +47,23 @@ export function registerCrmIpc(): void {
     s().contacts.listAll(f),
   )
   ipcMain.handle('crm:contacts:get', (_e, id: number) => s().contacts.get(id))
-  ipcMain.handle('crm:contacts:create', (_e, clientId: number, name: string) =>
-    s().contacts.create(clientId, name),
+  ipcMain.handle(
+    'crm:contacts:create',
+    (
+      _e,
+      clientId: number,
+      c: {
+        name: string; role?: string; phone?: string; wechat?: string
+        email?: string; sex?: '' | 'male' | 'female'; note?: string
+      },
+    ) => s().contacts.create(clientId, c),
   )
   ipcMain.handle(
     'crm:contacts:update',
     (
       _e,
       id: number,
-      c: { name: string; role: string; phone: string; wechat: string; email: string; note: string },
+      c: { name: string; role: string; phone: string; wechat: string; email: string; sex: '' | 'male' | 'female'; note: string },
     ) => s().contacts.update(id, c),
   )
   ipcMain.handle('crm:contacts:remove', (_e, id: number) => s().contacts.remove(id))
@@ -57,8 +78,13 @@ export function registerCrmIpc(): void {
       s().projects.listAll(f),
   )
   ipcMain.handle('crm:projects:get', (_e, id: number) => s().projects.get(id))
-  ipcMain.handle('crm:projects:create', (_e, clientId: number, name: string) =>
-    s().projects.create(clientId, name),
+  ipcMain.handle(
+    'crm:projects:create',
+    (
+      _e,
+      clientId: number,
+      p: { name: string; status?: 'active' | 'done'; description?: string; amountCents?: number; endDate?: string },
+    ) => s().projects.create(clientId, p),
   )
   ipcMain.handle(
     'crm:projects:update',

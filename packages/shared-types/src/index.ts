@@ -82,8 +82,13 @@ export interface GithubBridge {
   createIssue(fullName: string, title: string, body: string): Promise<{ url: string; number: number }>
 }
 
-export interface CrmClient { id: number; name: string; type: 'company' | 'person'; note: string; createdAt: number }
-export interface CrmContact { id: number; clientId: number; name: string; role: string; phone: string; wechat: string; email: string; note: string; createdAt: number }
+export interface CrmClient {
+  id: number; name: string; type: 'company' | 'person'; note: string
+  phone: string; email: string
+  legalPerson: string; legalPersonPhone: string; uscc: string; regAddress: string; establishedDate: string
+  createdAt: number
+}
+export interface CrmContact { id: number; clientId: number; name: string; role: string; phone: string; wechat: string; email: string; sex: '' | 'male' | 'female'; note: string; createdAt: number }
 export interface CrmProjectLite { id: number; name: string; status: string }
 export interface CrmProject {
   id: number; clientId: number; name: string; status: 'active' | 'done'
@@ -103,19 +108,33 @@ export interface CrmProjectListItem {
   clientName: string; amountCents: number; endDate: string
 }
 
+export interface CrmClientInput {
+  name: string; type: 'company' | 'person'
+  note?: string; phone?: string; email?: string
+  legalPerson?: string; legalPersonPhone?: string; uscc?: string; regAddress?: string; establishedDate?: string
+}
+export interface CrmContactInput {
+  name: string
+  role?: string; phone?: string; wechat?: string; email?: string; sex?: '' | 'male' | 'female'; note?: string
+}
+export interface CrmProjectInput {
+  name: string
+  status?: 'active' | 'done'; description?: string; amountCents?: number; endDate?: string
+}
+
 export interface CrmBridge {
   clients: {
     list(f?: CrmClientFilter): Promise<CrmClient[]>
     get(id: number): Promise<CrmClient | null>
-    create(name: string, type: 'company' | 'person'): Promise<number>
-    update(id: number, c: { name: string; type: 'company' | 'person'; note: string }): Promise<void>
+    create(c: CrmClientInput): Promise<number>
+    update(id: number, c: Omit<CrmClient, 'id' | 'createdAt'>): Promise<void>
     remove(id: number): Promise<void>
   }
   contacts: {
     listByClient(clientId: number): Promise<CrmContact[]>
     listAll(f?: CrmContactFilter): Promise<CrmContactWithClient[]>
     get(id: number): Promise<CrmContact | null>
-    create(clientId: number, name: string): Promise<number>
+    create(clientId: number, c: CrmContactInput): Promise<number>
     update(id: number, c: Omit<CrmContact, 'id' | 'clientId' | 'createdAt'>): Promise<void>
     remove(id: number): Promise<void>
   }
@@ -123,7 +142,7 @@ export interface CrmBridge {
     listByClient(clientId: number): Promise<CrmProjectLite[]>
     listAll(f?: CrmProjectFilter): Promise<CrmProjectListItem[]>
     get(id: number): Promise<CrmProject | null>
-    create(clientId: number, name: string): Promise<number>
+    create(clientId: number, p: CrmProjectInput): Promise<number>
     update(id: number, p: Omit<CrmProject, 'id' | 'clientId' | 'createdAt' | 'updatedAt'>): Promise<void>
     remove(id: number): Promise<void>
   }

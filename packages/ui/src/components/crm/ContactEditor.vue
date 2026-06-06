@@ -12,6 +12,7 @@ const form = reactive({
   phone: '',
   wechat: '',
   email: '',
+  sex: '' as '' | 'male' | 'female',
   note: '',
 })
 
@@ -59,6 +60,7 @@ function fillForm(contact: CrmContact): void {
   form.phone = contact.phone
   form.wechat = contact.wechat
   form.email = contact.email
+  form.sex = contact.sex
   form.note = contact.note
   dirty.value = false
 }
@@ -90,6 +92,7 @@ async function save(): Promise<void> {
       phone: form.phone,
       wechat: form.wechat,
       email: form.email,
+      sex: form.sex,
       note: form.note,
     })
     dirty.value = false

@@ -92,6 +92,13 @@ async function save(): Promise<void> {
       name: form.name,
       type: form.type,
       note: form.note,
+      phone: '',
+      email: '',
+      legalPerson: '',
+      legalPersonPhone: '',
+      uscc: '',
+      regAddress: '',
+      establishedDate: '',
     })
     dirty.value = false
     emit('rename', form.name)
