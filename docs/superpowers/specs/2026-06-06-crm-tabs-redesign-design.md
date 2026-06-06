@@ -52,15 +52,13 @@
 ## 详情/新增页
 
 - **ClientEditor.vue（新建）**：上半部分基本信息表单（名称/类型/备注，dirty + 保存，沿用现有编辑器模式）；下半部分两个关联区块——该客户的干系人列表、项目列表（简单表格，点行开内部详情 tab；区块内「新增」开新增 tab 并预填所属客户）。
-- **ContactEditor / ProjectEditor（改造）**：
-  - 在 CrmPanel 内部渲染，保存改名/删除事件发给 CrmPanel
-  - 顶部增加「所属客户」：详情模式只读展示；新增模式为客户下拉（必选，可预填）
-  - 新增模式保存后创建记录，tab 变身详情
-- 保存/删除后向相关列表 tab 广播刷新（CrmPanel 内事件或版本号机制）。
+- **ContactEditor / ProjectEditor（改造）**：在 CrmPanel 内部渲染，保存改名/删除事件发给 CrmPanel；增加「所属客户」只读展示。
+- **CrmNewForm（新建组件）**：统一的新增表单 tab——客户填名称+类型；干系人/项目填名称+所属客户（必选，可预填）。保存后创建记录，tab 原地变身详情 tab，其余字段在详情里补全（复用既有 create IPC「先建后改」，三个实体一个组件，避免给两个大编辑器加新增模式分支）。
+- 保存/删除后向相关列表 tab 广播刷新（CrmPanel 内版本号机制）。
 
 ## 数据层与 IPC
 
-- **迁移**：启动时守护式 `ALTER TABLE ... ADD COLUMN deleted_at TEXT`，作用于 `crm_clients` / `crm_contacts` / `crm_projects`。`crm_payments` / `crm_files` 随项目走，保持物理删除。
+- **迁移**：启动时守护式 `ALTER TABLE ... ADD COLUMN deleted_at INTEGER`（毫秒时间戳，与 `created_at` 一致），作用于 `crm_clients` / `crm_contacts` / `crm_projects`。`crm_payments` / `crm_files` 随项目走，保持物理删除。
 - **crmStore**：
   - 所有 list/get 过滤 `deleted_at IS NULL`
   - `remove()` 改为 `UPDATE ... SET deleted_at = <now>`；删除客户时在事务里把其下干系人/项目一并打标
