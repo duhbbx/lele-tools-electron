@@ -42,7 +42,8 @@ function storeFile(
 ) {
   const dir = join(notesDir(), String(noteId))
   mkdirSync(dir, { recursive: true })
-  let destName = srcName
+  // 防写侧路径穿越：渲染层传来的文件名可能含 ".."，basename 确保只取最终分量
+  let destName = basename(srcName)
   if (existsSync(join(dir, destName))) destName = `${Date.now()}-${destName}`
   const dest = join(dir, destName)
   write(dest)
@@ -63,7 +64,7 @@ export function registerNotesScheme(): void {
 export function registerNotesProtocol(): void {
   protocol.handle('notes-file', (request) => {
     const id = Number(new URL(request.url).hostname)
-    const row = Number.isInteger(id) ? s().files.get(id) : null
+    const row = Number.isInteger(id) && id > 0 ? s().files.get(id) : null
     if (!row) return new Response('not found', { status: 404 })
     const abs = resolve(app.getPath('userData'), row.storedPath)
     // 防路径穿越：必须落在附件目录内
