@@ -3,6 +3,7 @@ import { onMounted, ref, watch } from 'vue'
 import type { CrmClient } from '@lele/shared-types'
 import { t } from '../../i18n'
 import { useConfirmDelete } from './confirm'
+import { sourceLabel } from './options'
 
 const props = defineProps<{ refreshTick: number }>()
 const emit = defineEmits<{ open: [id: number, title: string]; add: []; deleted: [id: number] }>()
@@ -65,6 +66,7 @@ function fmtDate(ts: number): string {
           <tr>
             <th>{{ t('crm.name') }}</th>
             <th>{{ t('crm.type') }}</th>
+            <th>{{ t('crm.source') }}</th>
             <th>{{ t('crm.note') }}</th>
             <th>{{ t('crm.createdAt') }}</th>
             <th>{{ t('crm.actions') }}</th>
@@ -74,6 +76,7 @@ function fmtDate(ts: number): string {
           <tr v-for="r in rows" :key="r.id">
             <td>{{ r.name }}</td>
             <td>{{ r.type === 'company' ? t('crm.company') : t('crm.person') }}</td>
+            <td>{{ sourceLabel(r.source) }}</td>
             <td class="ellipsis">{{ r.note }}</td>
             <td>{{ fmtDate(r.createdAt) }}</td>
             <td class="ops">

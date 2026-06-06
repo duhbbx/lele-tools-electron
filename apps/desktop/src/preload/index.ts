@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import type { WindowApi } from '@lele/shared-types'
+import type { CrmClientSource, CrmPaymentMethod, WindowApi } from '@lele/shared-types'
 
 const api: WindowApi = {
   ai: {
@@ -100,12 +100,14 @@ const api: WindowApi = {
       create: (c: {
         name: string; type: 'company' | 'person'; note?: string; phone?: string; email?: string
         legalPerson?: string; legalPersonPhone?: string; uscc?: string; regAddress?: string; establishedDate?: string
+        source?: CrmClientSource
       }) => ipcRenderer.invoke('crm:clients:create', c),
       update: (
         id: number,
         c: {
           name: string; type: 'company' | 'person'; note: string; phone: string; email: string
           legalPerson: string; legalPersonPhone: string; uscc: string; regAddress: string; establishedDate: string
+          source: CrmClientSource
         },
       ) => ipcRenderer.invoke('crm:clients:update', id, c),
       remove: (id: number) => ipcRenderer.invoke('crm:clients:remove', id),
@@ -145,7 +147,7 @@ const api: WindowApi = {
       get: (id: number) => ipcRenderer.invoke('crm:projects:get', id),
       create: (
         clientId: number,
-        p: { name: string; status?: 'active' | 'done'; description?: string; amountCents?: number; endDate?: string },
+        p: { name: string; status?: 'active' | 'done'; description?: string; amountCents?: number; shareCents?: number; endDate?: string },
       ) => ipcRenderer.invoke('crm:projects:create', clientId, p),
       update: (
         id: number,
@@ -162,6 +164,7 @@ const api: WindowApi = {
           wxAppSecret: string
           wxPayParams: string
           amountCents: number
+          shareCents: number
           endDate: string
         },
       ) => ipcRenderer.invoke('crm:projects:update', id, p),
@@ -170,7 +173,7 @@ const api: WindowApi = {
     payments: {
       listByProject: (projectId: number) =>
         ipcRenderer.invoke('crm:payments:listByProject', projectId),
-      add: (projectId: number, p: { amountCents: number; paidAt: string; note: string }) =>
+      add: (projectId: number, p: { amountCents: number; paidAt: string; method: CrmPaymentMethod; note: string }) =>
         ipcRenderer.invoke('crm:payments:add', projectId, p),
       remove: (id: number) => ipcRenderer.invoke('crm:payments:remove', id),
     },

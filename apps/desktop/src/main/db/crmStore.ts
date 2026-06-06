@@ -1,5 +1,9 @@
 import type Database from 'better-sqlite3'
 
+export type CrmClientSource =
+  | '' | 'xiaohongshu' | 'xianyu' | 'referral' | 'wechat' | 'github' | 'website' | 'other'
+export type CrmPaymentMethod = '' | 'bank' | 'wechat' | 'alipay' | 'other'
+
 export interface CrmClientRow {
   id: number
   name: string
@@ -12,6 +16,7 @@ export interface CrmClientRow {
   uscc: string
   regAddress: string
   establishedDate: string
+  source: CrmClientSource
   createdAt: number
 }
 
@@ -43,6 +48,7 @@ export interface CrmProjectRow {
   wxAppSecret: string
   wxPayParams: string
   amountCents: number
+  shareCents: number
   endDate: string
   createdAt: number
   updatedAt: number
@@ -53,6 +59,7 @@ export interface CrmPaymentRow {
   projectId: number
   amountCents: number
   paidAt: string
+  method: CrmPaymentMethod
   note: string
 }
 
@@ -72,6 +79,7 @@ export interface CrmProjectListRow {
   status: 'active' | 'done'
   clientName: string
   amountCents: number
+  shareCents: number
   endDate: string
 }
 
@@ -88,6 +96,7 @@ function mapClient(r: Record<string, unknown>): CrmClientRow {
     uscc: r.uscc as string,
     regAddress: r.reg_address as string,
     establishedDate: r.established_date as string,
+    source: r.source as CrmClientSource,
     createdAt: r.created_at as number,
   }
 }
@@ -123,6 +132,7 @@ function mapProject(r: Record<string, unknown>): CrmProjectRow {
     wxAppSecret: r.wx_app_secret as string,
     wxPayParams: r.wx_pay_params as string,
     amountCents: r.amount_cents as number,
+    shareCents: r.share_cents as number,
     endDate: r.end_date as string,
     createdAt: r.created_at as number,
     updatedAt: r.updated_at as number,
@@ -135,6 +145,7 @@ function mapPayment(r: Record<string, unknown>): CrmPaymentRow {
     projectId: r.project_id as number,
     amountCents: r.amount_cents as number,
     paidAt: r.paid_at as string,
+    method: r.method as CrmPaymentMethod,
     note: r.note as string,
   }
 }
@@ -186,18 +197,19 @@ export function makeCrmStore(db: Database.Database) {
         uscc?: string
         regAddress?: string
         establishedDate?: string
+        source?: CrmClientSource
       }): number {
         const result = db
           .prepare(
             `INSERT INTO crm_clients(
               name, type, note, phone, email, legal_person, legal_person_phone,
-              uscc, reg_address, established_date, created_at
-            ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              uscc, reg_address, established_date, source, created_at
+            ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
           .run(
             c.name, c.type, c.note ?? '', c.phone ?? '', c.email ?? '',
             c.legalPerson ?? '', c.legalPersonPhone ?? '', c.uscc ?? '',
-            c.regAddress ?? '', c.establishedDate ?? '', Date.now(),
+            c.regAddress ?? '', c.establishedDate ?? '', c.source ?? '', Date.now(),
           )
         return result.lastInsertRowid as number
       },
@@ -205,11 +217,13 @@ export function makeCrmStore(db: Database.Database) {
         db.prepare(
           `UPDATE crm_clients SET
             name = ?, type = ?, note = ?, phone = ?, email = ?,
-            legal_person = ?, legal_person_phone = ?, uscc = ?, reg_address = ?, established_date = ?
+            legal_person = ?, legal_person_phone = ?, uscc = ?, reg_address = ?, established_date = ?,
+            source = ?
           WHERE id = ?`,
         ).run(
           c.name, c.type, c.note, c.phone, c.email,
           c.legalPerson, c.legalPersonPhone, c.uscc, c.regAddress, c.establishedDate,
+          c.source,
           id,
         )
       },
@@ -327,7 +341,7 @@ export function makeCrmStore(db: Database.Database) {
         }
         const rows = db
           .prepare(
-            `SELECT p.id, p.client_id, p.name, p.status, p.amount_cents, p.end_date,
+            `SELECT p.id, p.client_id, p.name, p.status, p.amount_cents, p.share_cents, p.end_date,
                     cl.name AS client_name
              FROM crm_projects p
              JOIN crm_clients cl ON cl.id = p.client_id AND cl.deleted_at IS NULL
@@ -341,6 +355,7 @@ export function makeCrmStore(db: Database.Database) {
           status: r.status as 'active' | 'done',
           clientName: r.client_name as string,
           amountCents: r.amount_cents as number,
+          shareCents: r.share_cents as number,
           endDate: r.end_date as string,
         }))
       },
@@ -357,6 +372,7 @@ export function makeCrmStore(db: Database.Database) {
           status?: 'active' | 'done'
           description?: string
           amountCents?: number
+          shareCents?: number
           endDate?: string
         },
       ): number {
@@ -366,12 +382,12 @@ export function makeCrmStore(db: Database.Database) {
             `INSERT INTO crm_projects(
               client_id, name, status, description, server_addr, domain, admin_url,
               admin_user, admin_pass, wx_app_id, wx_app_secret, wx_pay_params,
-              amount_cents, end_date, created_at, updated_at
-            ) VALUES(?, ?, ?, ?, '', '', '', '', '', '', '', '[]', ?, ?, ?, ?)`,
+              amount_cents, share_cents, end_date, created_at, updated_at
+            ) VALUES(?, ?, ?, ?, '', '', '', '', '', '', '', '[]', ?, ?, ?, ?, ?)`,
           )
           .run(
             clientId, p.name, p.status ?? 'active', p.description ?? '',
-            p.amountCents ?? 0, p.endDate ?? '', now, now,
+            p.amountCents ?? 0, p.shareCents ?? 0, p.endDate ?? '', now, now,
           )
         return result.lastInsertRowid as number
       },
@@ -383,7 +399,7 @@ export function makeCrmStore(db: Database.Database) {
           `UPDATE crm_projects SET
             name = ?, status = ?, description = ?, server_addr = ?, domain = ?,
             admin_url = ?, admin_user = ?, admin_pass = ?, wx_app_id = ?, wx_app_secret = ?,
-            wx_pay_params = ?, amount_cents = ?, end_date = ?, updated_at = ?
+            wx_pay_params = ?, amount_cents = ?, share_cents = ?, end_date = ?, updated_at = ?
           WHERE id = ?`,
         ).run(
           p.name,
@@ -398,6 +414,7 @@ export function makeCrmStore(db: Database.Database) {
           p.wxAppSecret,
           p.wxPayParams,
           p.amountCents,
+          p.shareCents,
           p.endDate,
           Date.now(),
           id,
@@ -419,13 +436,13 @@ export function makeCrmStore(db: Database.Database) {
       },
       add(
         projectId: number,
-        p: { amountCents: number; paidAt: string; note: string },
+        p: { amountCents: number; paidAt: string; method: CrmPaymentMethod; note: string },
       ): number {
         const result = db
           .prepare(
-            'INSERT INTO crm_payments(project_id, amount_cents, paid_at, note) VALUES(?, ?, ?, ?)',
+            'INSERT INTO crm_payments(project_id, amount_cents, paid_at, method, note) VALUES(?, ?, ?, ?, ?)',
           )
-          .run(projectId, p.amountCents, p.paidAt, p.note)
+          .run(projectId, p.amountCents, p.paidAt, p.method, p.note)
         return result.lastInsertRowid as number
       },
       remove(id: number): void {

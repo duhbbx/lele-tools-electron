@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import type { CrmClient } from '@lele/shared-types'
+import type { CrmClient, CrmClientSource } from '@lele/shared-types'
 import { t } from '../../i18n'
 import { yuanToCents } from '../../money'
+import { CLIENT_SOURCES, sourceLabel } from './options'
 
 const props = defineProps<{ entity: 'client' | 'contact' | 'project'; presetClientId?: number }>()
 const emit = defineEmits<{ created: [id: number, title: string] }>()
@@ -22,6 +23,7 @@ const client = reactive({
   uscc: '',
   regAddress: '',
   establishedDate: '',
+  source: '' as CrmClientSource,
 })
 const contact = reactive({
   wechat: '',
@@ -34,6 +36,7 @@ const contact = reactive({
 const project = reactive({
   status: 'active' as 'active' | 'done',
   amountYuan: '',
+  shareYuan: '',
   endDate: '',
   description: '',
 })
@@ -73,6 +76,7 @@ async function save(): Promise<void> {
         uscc: client.uscc,
         regAddress: client.regAddress,
         establishedDate: client.establishedDate,
+        source: client.source,
       })
     } else if (props.entity === 'contact') {
       id = await window.api?.crm?.contacts?.create?.(clientId.value, {
@@ -90,6 +94,7 @@ async function save(): Promise<void> {
         status: project.status,
         description: project.description,
         amountCents: yuanToCents(project.amountYuan),
+        shareCents: yuanToCents(project.shareYuan),
         endDate: project.endDate,
       })
     }
@@ -125,6 +130,13 @@ async function save(): Promise<void> {
         <select v-model="client.type" class="input">
           <option value="company">{{ t('crm.company') }}</option>
           <option value="person">{{ t('crm.person') }}</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>{{ t('crm.source') }}</span>
+        <select v-model="client.source" class="input">
+          <option value="">—</option>
+          <option v-for="srcKey in CLIENT_SOURCES" :key="srcKey" :value="srcKey">{{ sourceLabel(srcKey) }}</option>
         </select>
       </label>
       <template v-if="client.type === 'person'">
@@ -205,6 +217,10 @@ async function save(): Promise<void> {
       <label class="field">
         <span>{{ t('crm.amount') }}</span>
         <input v-model="project.amountYuan" class="input" type="text" placeholder="0.00" />
+      </label>
+      <label class="field">
+        <span>{{ t('crm.shareAmount') }}</span>
+        <input v-model="project.shareYuan" class="input" type="text" placeholder="0.00" />
       </label>
       <label class="field">
         <span>{{ t('crm.endDate') }}</span>

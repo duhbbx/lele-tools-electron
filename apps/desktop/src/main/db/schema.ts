@@ -24,7 +24,7 @@ export function migrate(db: Database.Database): void {
       phone TEXT NOT NULL DEFAULT '', email TEXT NOT NULL DEFAULT '',
       legal_person TEXT NOT NULL DEFAULT '', legal_person_phone TEXT NOT NULL DEFAULT '',
       uscc TEXT NOT NULL DEFAULT '', reg_address TEXT NOT NULL DEFAULT '',
-      established_date TEXT NOT NULL DEFAULT ''
+      established_date TEXT NOT NULL DEFAULT '', source TEXT NOT NULL DEFAULT ''
     );
     CREATE TABLE IF NOT EXISTS crm_contacts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,14 +43,16 @@ export function migrate(db: Database.Database): void {
       admin_user TEXT NOT NULL DEFAULT '', admin_pass TEXT NOT NULL DEFAULT '',
       wx_app_id TEXT NOT NULL DEFAULT '', wx_app_secret TEXT NOT NULL DEFAULT '',
       wx_pay_params TEXT NOT NULL DEFAULT '[]',
-      amount_cents INTEGER NOT NULL DEFAULT 0, end_date TEXT NOT NULL DEFAULT '',
+      amount_cents INTEGER NOT NULL DEFAULT 0, share_cents INTEGER NOT NULL DEFAULT 0,
+      end_date TEXT NOT NULL DEFAULT '',
       created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
       deleted_at INTEGER
     );
     CREATE TABLE IF NOT EXISTS crm_payments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       project_id INTEGER NOT NULL REFERENCES crm_projects(id) ON DELETE CASCADE,
-      amount_cents INTEGER NOT NULL, paid_at TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT ''
+      amount_cents INTEGER NOT NULL, paid_at TEXT NOT NULL DEFAULT '',
+      method TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT ''
     );
     CREATE TABLE IF NOT EXISTS crm_files (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -94,6 +96,9 @@ export function migrate(db: Database.Database): void {
     ['crm_clients', 'reg_address', "reg_address TEXT NOT NULL DEFAULT ''"],
     ['crm_clients', 'established_date', "established_date TEXT NOT NULL DEFAULT ''"],
     ['crm_contacts', 'sex', "sex TEXT NOT NULL DEFAULT ''"],
+    ['crm_clients', 'source', "source TEXT NOT NULL DEFAULT ''"],
+    ['crm_projects', 'share_cents', 'share_cents INTEGER NOT NULL DEFAULT 0'],
+    ['crm_payments', 'method', "method TEXT NOT NULL DEFAULT ''"],
   ]
   for (const [table, column, ddl] of GUARDED_COLUMNS) {
     const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]

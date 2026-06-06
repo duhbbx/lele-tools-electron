@@ -18,7 +18,7 @@ describe('crm clients', () => {
   it('creates, lists, updates, deletes clients', () => {
     const id = store.clients.create({ name: '某公司', type: 'company', note: '' })
     expect(store.clients.list()).toHaveLength(1)
-    store.clients.update(id, { name: '改名公司', type: 'company', note: 'x', phone: '', email: '', legalPerson: '', legalPersonPhone: '', uscc: '', regAddress: '', establishedDate: '' })
+    store.clients.update(id, { name: '改名公司', type: 'company', note: 'x', phone: '', email: '', legalPerson: '', legalPersonPhone: '', uscc: '', regAddress: '', establishedDate: '', source: '' })
     expect(store.clients.get(id)?.name).toBe('改名公司')
     store.clients.remove(id)
     expect(store.clients.list()).toHaveLength(0)
@@ -41,7 +41,7 @@ describe('soft delete', () => {
     const cid = store.clients.create({ name: 'c', type: 'person', note: '' })
     const pid = store.projects.create(cid, { name: '项目A' })
     const ctid = store.contacts.create(cid, { name: '张总' })
-    store.payments.add(pid, { amountCents: 100_00, paidAt: '2026-06-01', note: '' })
+    store.payments.add(pid, { amountCents: 100_00, paidAt: '2026-06-01', method: '', note: '' })
     store.files.add(pid, { name: '合同.pdf', storedPath: 'crm-files/1/合同.pdf', size: 10 })
     store.clients.remove(cid)
     expect(store.contacts.listByClient(cid)).toHaveLength(0)
@@ -74,14 +74,17 @@ describe('project update + payments math source data', () => {
       name: 'P1', status: 'active', description: 'desc', serverAddr: '1.2.3.4',
       domain: 'p.example.com', adminUrl: 'https://p.example.com/admin', adminUser: 'root',
       adminPass: 'pw', wxAppId: 'wx1', wxAppSecret: 's', wxPayParams: '[{"k":"mchId","v":"123"}]',
-      amountCents: 5000_00, endDate: '2026-12-31',
+      amountCents: 5000_00, shareCents: 1500_00, endDate: '2026-12-31',
     })
     const p = store.projects.get(pid)
     expect(p?.amountCents).toBe(5000_00)
+    expect(p?.shareCents).toBe(1500_00)
     expect(p?.domain).toBe('p.example.com')
-    store.payments.add(pid, { amountCents: 1000_00, paidAt: '2026-06-01', note: '首款' })
-    store.payments.add(pid, { amountCents: 2000_00, paidAt: '2026-07-01', note: '' })
-    expect(store.payments.listByProject(pid).map((x) => x.amountCents)).toEqual([1000_00, 2000_00])
+    store.payments.add(pid, { amountCents: 1000_00, paidAt: '2026-06-01', method: 'bank', note: '首款' })
+    store.payments.add(pid, { amountCents: 2000_00, paidAt: '2026-07-01', method: 'alipay', note: '' })
+    const pays = store.payments.listByProject(pid)
+    expect(pays.map((x) => x.amountCents)).toEqual([1000_00, 2000_00])
+    expect(pays.map((x) => x.method)).toEqual(['bank', 'alipay'])
   })
 })
 
@@ -119,7 +122,7 @@ describe('filtered queries', () => {
     store.projects.update(p1, {
       name: '官网改版', status: 'done', description: '', serverAddr: '', domain: '',
       adminUrl: '', adminUser: '', adminPass: '', wxAppId: '', wxAppSecret: '',
-      wxPayParams: '[]', amountCents: 8000_00, endDate: '2026-09-30',
+      wxPayParams: '[]', amountCents: 8000_00, shareCents: 2000_00, endDate: '2026-09-30',
     })
   })
 
@@ -144,6 +147,7 @@ describe('filtered queries', () => {
     const p = all.find((x) => x.name === '官网改版')
     expect(p?.clientName).toBe('阿里云')
     expect(p?.amountCents).toBe(8000_00)
+    expect(p?.shareCents).toBe(2000_00)
     expect(p?.endDate).toBe('2026-09-30')
     expect(store.projects.listAll({ status: 'done' })).toHaveLength(1)
     expect(store.projects.listAll({ clientId: cidB, q: '小' })).toHaveLength(1)
@@ -172,22 +176,33 @@ describe('extended entity fields', () => {
       name: '某科技公司', type: 'company', email: 'biz@example.com',
       legalPerson: '张法人', legalPersonPhone: '13800000000',
       uscc: '91110000XXXXXXXXXX', regAddress: '北京市朝阳区', establishedDate: '2020-01-01',
+      source: 'xiaohongshu',
     })
     const c = store.clients.get(id)
     expect(c?.legalPerson).toBe('张法人')
     expect(c?.uscc).toBe('91110000XXXXXXXXXX')
     expect(c?.email).toBe('biz@example.com')
     expect(c?.phone).toBe('')
+    expect(c?.source).toBe('xiaohongshu')
     store.clients.update(id, {
       name: '某科技公司', type: 'person', note: 'n', phone: '13900000000', email: 'p@example.com',
       legalPerson: '张法人', legalPersonPhone: '13800000000',
       uscc: '91110000XXXXXXXXXX', regAddress: '北京市朝阳区', establishedDate: '2020-01-01',
+      source: 'referral',
     })
     const c2 = store.clients.get(id)
     expect(c2?.phone).toBe('13900000000')
     expect(c2?.type).toBe('person')
+    expect(c2?.source).toBe('referral')
     // 类型切换后公司字段数据保留
     expect(c2?.legalPerson).toBe('张法人')
+  })
+
+  it('source 缺省为空串，create 可带来源标记', () => {
+    const id1 = store.clients.create({ name: '无来源', type: 'company' })
+    expect(store.clients.get(id1)?.source).toBe('')
+    const id2 = store.clients.create({ name: '咸鱼客户', type: 'person', source: 'xianyu' })
+    expect(store.clients.get(id2)?.source).toBe('xianyu')
   })
 
   it('contacts 全字段 create 含性别，update 可改性别', () => {
@@ -208,16 +223,18 @@ describe('extended entity fields', () => {
   it('projects.create 带基本字段', () => {
     const cid = store.clients.create({ name: 'c', type: 'company' })
     const pid = store.projects.create(cid, {
-      name: '官网', status: 'done', description: '改版', amountCents: 8000_00, endDate: '2026-12-31',
+      name: '官网', status: 'done', description: '改版', amountCents: 8000_00, shareCents: 800_00, endDate: '2026-12-31',
     })
     const p = store.projects.get(pid)
     expect(p?.status).toBe('done')
     expect(p?.amountCents).toBe(8000_00)
+    expect(p?.shareCents).toBe(800_00)
     expect(p?.endDate).toBe('2026-12-31')
     expect(p?.description).toBe('改版')
     // 缺省路径
     const pid2 = store.projects.create(cid, { name: 'P2' })
     expect(store.projects.get(pid2)?.status).toBe('active')
+    expect(store.projects.get(pid2)?.shareCents).toBe(0)
   })
 })
 
@@ -250,6 +267,20 @@ describe('extended field columns migration', () => {
     }
     const contactCols = oldDb.prepare('PRAGMA table_info(crm_contacts)').all() as { name: string }[]
     expect(contactCols.some((x) => x.name === 'sex')).toBe(true)
+    oldDb.close()
+  })
+
+  it('clients.source / projects.share_cents / payments.method 三个新列存在且老库可补齐', () => {
+    expect((db.prepare('PRAGMA table_info(crm_clients)').all() as { name: string }[]).some((x) => x.name === 'source')).toBe(true)
+    expect((db.prepare('PRAGMA table_info(crm_projects)').all() as { name: string }[]).some((x) => x.name === 'share_cents')).toBe(true)
+    expect((db.prepare('PRAGMA table_info(crm_payments)').all() as { name: string }[]).some((x) => x.name === 'method')).toBe(true)
+
+    const oldDb = new Database(':memory:')
+    oldDb.exec(
+      'CREATE TABLE crm_payments (id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER NOT NULL, amount_cents INTEGER NOT NULL, paid_at TEXT NOT NULL DEFAULT \'\', note TEXT NOT NULL DEFAULT \'\')',
+    )
+    expect(() => migrate(oldDb)).not.toThrow()
+    expect((oldDb.prepare('PRAGMA table_info(crm_payments)').all() as { name: string }[]).some((x) => x.name === 'method')).toBe(true)
     oldDb.close()
   })
 })

@@ -1,7 +1,7 @@
 import { copyFileSync, existsSync, mkdirSync, rmSync, statSync } from 'node:fs'
 import { basename, join, relative } from 'node:path'
 import { app, dialog, ipcMain, shell } from 'electron'
-import { makeCrmStore } from '../db/crmStore'
+import { type CrmClientSource, type CrmPaymentMethod, makeCrmStore } from '../db/crmStore'
 import { getDb } from '../db/sqlite'
 
 let _store: ReturnType<typeof makeCrmStore> | null = null
@@ -23,6 +23,7 @@ export function registerCrmIpc(): void {
       c: {
         name: string; type: 'company' | 'person'; note?: string; phone?: string; email?: string
         legalPerson?: string; legalPersonPhone?: string; uscc?: string; regAddress?: string; establishedDate?: string
+        source?: CrmClientSource
       },
     ) => s().clients.create(c),
   )
@@ -34,6 +35,7 @@ export function registerCrmIpc(): void {
       c: {
         name: string; type: 'company' | 'person'; note: string; phone: string; email: string
         legalPerson: string; legalPersonPhone: string; uscc: string; regAddress: string; establishedDate: string
+        source: CrmClientSource
       },
     ) => s().clients.update(id, c),
   )
@@ -83,7 +85,7 @@ export function registerCrmIpc(): void {
     (
       _e,
       clientId: number,
-      p: { name: string; status?: 'active' | 'done'; description?: string; amountCents?: number; endDate?: string },
+      p: { name: string; status?: 'active' | 'done'; description?: string; amountCents?: number; shareCents?: number; endDate?: string },
     ) => s().projects.create(clientId, p),
   )
   ipcMain.handle(
@@ -104,6 +106,7 @@ export function registerCrmIpc(): void {
         wxAppSecret: string
         wxPayParams: string
         amountCents: number
+        shareCents: number
         endDate: string
       },
     ) => s().projects.update(id, p),
@@ -116,7 +119,7 @@ export function registerCrmIpc(): void {
   )
   ipcMain.handle(
     'crm:payments:add',
-    (_e, projectId: number, p: { amountCents: number; paidAt: string; note: string }) =>
+    (_e, projectId: number, p: { amountCents: number; paidAt: string; method: CrmPaymentMethod; note: string }) =>
       s().payments.add(projectId, p),
   )
   ipcMain.handle('crm:payments:remove', (_e, id: number) => s().payments.remove(id))

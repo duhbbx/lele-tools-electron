@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref, watch } from 'vue'
-import type { CrmContact, CrmProjectLite } from '@lele/shared-types'
+import type { CrmClientSource, CrmContact, CrmProjectLite } from '@lele/shared-types'
 import { t } from '../../i18n'
+import { CLIENT_SOURCES, sourceLabel } from './options'
 
 const props = defineProps<{ refId: number; refreshTick: number }>()
 const emit = defineEmits<{
@@ -24,6 +25,7 @@ const form = reactive({
   uscc: '',
   regAddress: '',
   establishedDate: '',
+  source: '' as CrmClientSource,
 })
 const dirty = ref(false)
 const busy = ref(false)
@@ -91,6 +93,7 @@ onMounted(async () => {
     form.uscc = client.uscc
     form.regAddress = client.regAddress
     form.establishedDate = client.establishedDate
+    form.source = client.source
     dirty.value = false
     await loadRelated()
   } catch (e) {
@@ -117,6 +120,7 @@ async function save(): Promise<void> {
       uscc: form.uscc,
       regAddress: form.regAddress,
       establishedDate: form.establishedDate,
+      source: form.source,
     })
     dirty.value = false
     emit('rename', form.name)
@@ -156,6 +160,13 @@ function markDirty(): void {
       <select v-model="form.type" class="input" @change="markDirty">
         <option value="company">{{ t('crm.company') }}</option>
         <option value="person">{{ t('crm.person') }}</option>
+      </select>
+    </label>
+    <label class="field">
+      <span>{{ t('crm.source') }}</span>
+      <select v-model="form.source" class="input" @change="markDirty">
+        <option value="">—</option>
+        <option v-for="srcKey in CLIENT_SOURCES" :key="srcKey" :value="srcKey">{{ sourceLabel(srcKey) }}</option>
       </select>
     </label>
     <template v-if="form.type === 'person'">

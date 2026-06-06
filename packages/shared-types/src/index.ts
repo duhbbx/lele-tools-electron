@@ -82,10 +82,17 @@ export interface GithubBridge {
   createIssue(fullName: string, title: string, body: string): Promise<{ url: string; number: number }>
 }
 
+/** 客户来源标记；空串=未填 */
+export type CrmClientSource =
+  | '' | 'xiaohongshu' | 'xianyu' | 'referral' | 'wechat' | 'github' | 'website' | 'other'
+/** 收款方式；空串=未填 */
+export type CrmPaymentMethod = '' | 'bank' | 'wechat' | 'alipay' | 'other'
+
 export interface CrmClient {
   id: number; name: string; type: 'company' | 'person'; note: string
   phone: string; email: string
   legalPerson: string; legalPersonPhone: string; uscc: string; regAddress: string; establishedDate: string
+  source: CrmClientSource
   createdAt: number
 }
 export interface CrmContact { id: number; clientId: number; name: string; role: string; phone: string; wechat: string; email: string; sex: '' | 'male' | 'female'; note: string; createdAt: number }
@@ -94,9 +101,9 @@ export interface CrmProject {
   id: number; clientId: number; name: string; status: 'active' | 'done'
   description: string; serverAddr: string; domain: string; adminUrl: string; adminUser: string; adminPass: string
   wxAppId: string; wxAppSecret: string; wxPayParams: string
-  amountCents: number; endDate: string; createdAt: number; updatedAt: number
+  amountCents: number; shareCents: number; endDate: string; createdAt: number; updatedAt: number
 }
-export interface CrmPayment { id: number; projectId: number; amountCents: number; paidAt: string; note: string }
+export interface CrmPayment { id: number; projectId: number; amountCents: number; paidAt: string; method: CrmPaymentMethod; note: string }
 export interface CrmFile { id: number; projectId: number; name: string; storedPath: string; size: number; uploadedAt: number }
 
 export interface CrmClientFilter { q?: string; type?: 'company' | 'person' }
@@ -105,13 +112,14 @@ export interface CrmProjectFilter { q?: string; status?: 'active' | 'done'; clie
 export interface CrmContactWithClient extends CrmContact { clientName: string }
 export interface CrmProjectListItem {
   id: number; clientId: number; name: string; status: 'active' | 'done'
-  clientName: string; amountCents: number; endDate: string
+  clientName: string; amountCents: number; shareCents: number; endDate: string
 }
 
 export interface CrmClientInput {
   name: string; type: 'company' | 'person'
   note?: string; phone?: string; email?: string
   legalPerson?: string; legalPersonPhone?: string; uscc?: string; regAddress?: string; establishedDate?: string
+  source?: CrmClientSource
 }
 export interface CrmContactInput {
   name: string
@@ -119,7 +127,7 @@ export interface CrmContactInput {
 }
 export interface CrmProjectInput {
   name: string
-  status?: 'active' | 'done'; description?: string; amountCents?: number; endDate?: string
+  status?: 'active' | 'done'; description?: string; amountCents?: number; shareCents?: number; endDate?: string
 }
 
 export interface CrmBridge {
@@ -148,7 +156,7 @@ export interface CrmBridge {
   }
   payments: {
     listByProject(projectId: number): Promise<CrmPayment[]>
-    add(projectId: number, p: { amountCents: number; paidAt: string; note: string }): Promise<number>
+    add(projectId: number, p: { amountCents: number; paidAt: string; method: CrmPaymentMethod; note: string }): Promise<number>
     remove(id: number): Promise<void>
   }
   files: {
