@@ -13,7 +13,18 @@ const emit = defineEmits<{
   addProject: []
 }>()
 
-const form = reactive({ name: '', type: 'company' as 'company' | 'person', note: '' })
+const form = reactive({
+  name: '',
+  type: 'company' as 'company' | 'person',
+  note: '',
+  phone: '',
+  email: '',
+  legalPerson: '',
+  legalPersonPhone: '',
+  uscc: '',
+  regAddress: '',
+  establishedDate: '',
+})
 const dirty = ref(false)
 const busy = ref(false)
 
@@ -73,6 +84,13 @@ onMounted(async () => {
     form.name = client.name
     form.type = client.type
     form.note = client.note
+    form.phone = client.phone
+    form.email = client.email
+    form.legalPerson = client.legalPerson
+    form.legalPersonPhone = client.legalPersonPhone
+    form.uscc = client.uscc
+    form.regAddress = client.regAddress
+    form.establishedDate = client.establishedDate
     dirty.value = false
     await loadRelated()
   } catch (e) {
@@ -92,13 +110,13 @@ async function save(): Promise<void> {
       name: form.name,
       type: form.type,
       note: form.note,
-      phone: '',
-      email: '',
-      legalPerson: '',
-      legalPersonPhone: '',
-      uscc: '',
-      regAddress: '',
-      establishedDate: '',
+      phone: form.phone,
+      email: form.email,
+      legalPerson: form.legalPerson,
+      legalPersonPhone: form.legalPersonPhone,
+      uscc: form.uscc,
+      regAddress: form.regAddress,
+      establishedDate: form.establishedDate,
     })
     dirty.value = false
     emit('rename', form.name)
@@ -139,6 +157,38 @@ function markDirty(): void {
         <option value="company">{{ t('crm.company') }}</option>
         <option value="person">{{ t('crm.person') }}</option>
       </select>
+    </label>
+    <template v-if="form.type === 'person'">
+      <label class="field">
+        <span>{{ t('crm.mobile') }}</span>
+        <input v-model="form.phone" class="input" type="text" @input="markDirty" />
+      </label>
+    </template>
+    <template v-else>
+      <label class="field">
+        <span>{{ t('crm.legalPerson') }}</span>
+        <input v-model="form.legalPerson" class="input" type="text" @input="markDirty" />
+      </label>
+      <label class="field">
+        <span>{{ t('crm.legalPersonPhone') }}</span>
+        <input v-model="form.legalPersonPhone" class="input" type="text" @input="markDirty" />
+      </label>
+      <label class="field">
+        <span>{{ t('crm.uscc') }}</span>
+        <input v-model="form.uscc" class="input" type="text" @input="markDirty" />
+      </label>
+      <label class="field">
+        <span>{{ t('crm.regAddress') }}</span>
+        <input v-model="form.regAddress" class="input" type="text" @input="markDirty" />
+      </label>
+      <label class="field">
+        <span>{{ t('crm.establishedDate') }}</span>
+        <input v-model="form.establishedDate" class="input" type="date" @input="markDirty" />
+      </label>
+    </template>
+    <label class="field">
+      <span>{{ t('crm.email') }}</span>
+      <input v-model="form.email" class="input" type="email" @input="markDirty" />
     </label>
     <label class="field field-textarea">
       <span>{{ t('crm.note') }}</span>
@@ -217,7 +267,7 @@ function markDirty(): void {
 
     > span {
       color: var(--fg-dim);
-      width: 3em;
+      width: 8em;
       flex-shrink: 0;
     }
 

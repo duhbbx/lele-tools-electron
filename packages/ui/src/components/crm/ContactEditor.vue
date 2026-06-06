@@ -137,6 +137,14 @@ function markDirty(): void {
       <input v-model="form.role" class="input" type="text" @input="markDirty" />
     </label>
     <label class="field">
+      <span>性别</span>
+      <select v-model="form.sex" class="input" @change="markDirty">
+        <option value="">—</option>
+        <option value="male">男</option>
+        <option value="female">女</option>
+      </select>
+    </label>
+    <label class="field">
       <span>电话</span>
       <input v-model="form.phone" class="input" type="text" @input="markDirty" />
     </label>
