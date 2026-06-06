@@ -62,6 +62,75 @@ const api: WindowApi = {
     createIssue: (fullName: string, title: string, body: string) =>
       ipcRenderer.invoke('github:create-issue', fullName, title, body),
   },
+  crm: {
+    clients: {
+      list: () => ipcRenderer.invoke('crm:clients:list'),
+      create: (name: string, type: 'company' | 'person') =>
+        ipcRenderer.invoke('crm:clients:create', name, type),
+      update: (id: number, c: { name: string; type: 'company' | 'person'; note: string }) =>
+        ipcRenderer.invoke('crm:clients:update', id, c),
+      remove: (id: number) => ipcRenderer.invoke('crm:clients:remove', id),
+    },
+    contacts: {
+      listByClient: (clientId: number) =>
+        ipcRenderer.invoke('crm:contacts:listByClient', clientId),
+      get: (id: number) => ipcRenderer.invoke('crm:contacts:get', id),
+      create: (clientId: number, name: string) =>
+        ipcRenderer.invoke('crm:contacts:create', clientId, name),
+      update: (
+        id: number,
+        c: {
+          name: string
+          role: string
+          phone: string
+          wechat: string
+          email: string
+          note: string
+        },
+      ) => ipcRenderer.invoke('crm:contacts:update', id, c),
+      remove: (id: number) => ipcRenderer.invoke('crm:contacts:remove', id),
+    },
+    projects: {
+      listByClient: (clientId: number) =>
+        ipcRenderer.invoke('crm:projects:listByClient', clientId),
+      get: (id: number) => ipcRenderer.invoke('crm:projects:get', id),
+      create: (clientId: number, name: string) =>
+        ipcRenderer.invoke('crm:projects:create', clientId, name),
+      update: (
+        id: number,
+        p: {
+          name: string
+          status: 'active' | 'done'
+          description: string
+          serverAddr: string
+          domain: string
+          adminUrl: string
+          adminUser: string
+          adminPass: string
+          wxAppId: string
+          wxAppSecret: string
+          wxPayParams: string
+          amountCents: number
+          endDate: string
+        },
+      ) => ipcRenderer.invoke('crm:projects:update', id, p),
+      remove: (id: number) => ipcRenderer.invoke('crm:projects:remove', id),
+    },
+    payments: {
+      listByProject: (projectId: number) =>
+        ipcRenderer.invoke('crm:payments:listByProject', projectId),
+      add: (projectId: number, p: { amountCents: number; paidAt: string; note: string }) =>
+        ipcRenderer.invoke('crm:payments:add', projectId, p),
+      remove: (id: number) => ipcRenderer.invoke('crm:payments:remove', id),
+    },
+    files: {
+      listByProject: (projectId: number) =>
+        ipcRenderer.invoke('crm:files:listByProject', projectId),
+      pick: (projectId: number) => ipcRenderer.invoke('crm:files:pick', projectId),
+      open: (id: number) => ipcRenderer.invoke('crm:files:open', id),
+      remove: (id: number) => ipcRenderer.invoke('crm:files:remove', id),
+    },
+  },
 }
 
 contextBridge.exposeInMainWorld('api', api)
