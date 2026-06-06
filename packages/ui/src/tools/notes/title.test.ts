@@ -14,6 +14,8 @@ describe('extractTitle', () => {
     expect(extractTitle('\n\n- **重点**内容\n其他')).toBe('重点内容')
     expect(extractTitle('## 二级标题\n正文')).toBe('二级标题')
     expect(extractTitle('> 引用开头')).toBe('引用开头')
+    expect(extractTitle('1. 第一条')).toBe('第一条') // 有序列表前缀被剥掉
+    expect(extractTitle('10x 倍速笔记')).toBe('10x 倍速笔记') // 非列表的数字开头不被误剥
   })
 
   it('剥掉链接与图片标记保留文字', () => {
