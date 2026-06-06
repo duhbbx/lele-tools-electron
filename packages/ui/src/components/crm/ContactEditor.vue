@@ -19,7 +19,7 @@ const clientName = ref('')
 const dirty = ref(false)
 const busy = ref(false)
 
-// ── delete confirm (3s timeout pattern same as CrmTree) ───────────────────────
+// ── delete confirm (3s timeout pattern) ───────────────────────────────────────
 const deleteConfirming = ref(false)
 let deleteTimer: ReturnType<typeof setTimeout> | null = null
 
