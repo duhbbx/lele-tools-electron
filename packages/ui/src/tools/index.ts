@@ -16,10 +16,16 @@ import { meta as uuidGen } from './uuid-gen/meta'
 import { meta as xmlFormatter } from './xml-formatter/meta'
 import { meta as yamlFormatter } from './yaml-formatter/meta'
 import { meta as notesTool } from './notes/meta'
-import { meta as crmTool } from './crm/meta'
 
-export const TOOLS: ToolMeta[] = [jsonFormatter, xmlFormatter, yamlFormatter, base64, baseConvert, charCounter, regexTest, textCrypto, passwordGen, uuidGen, qrCode, dateTime, cronTool, colorTools, httpStatus, issueMover, notesTool, crmTool]
+export const TOOLS: ToolMeta[] = [jsonFormatter, xmlFormatter, yamlFormatter, base64, baseConvert, charCounter, regexTest, textCrypto, passwordGen, uuidGen, qrCode, dateTime, cronTool, colorTools, httpStatus, issueMover, notesTool]
 
 export function toolById(id: string): ToolMeta | undefined {
   return TOOLS.find((t) => t.id === id)
+}
+
+/** 插件工具注册（渲染层入口在 app mount 前调用；同 id 幂等） */
+export function registerTools(metas: ToolMeta[]): void {
+  for (const m of metas) {
+    if (!TOOLS.some((t) => t.id === m.id)) TOOLS.push(m)
+  }
 }

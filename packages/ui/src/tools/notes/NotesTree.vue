@@ -157,7 +157,7 @@ async function confirmRename(): Promise<void> {
   await refresh()
 }
 
-// ── 两步删除确认（CRM 同款） ──────────────────────────────────────────────────
+// ── 两步删除确认（两步点击 + 3s 超时复位） ──────────────────────────────────────────────────
 function startDelete(key: string): void {
   if (pendingDelete.value && pendingDelete.value !== key) {
     clearTimer(pendingDelete.value)

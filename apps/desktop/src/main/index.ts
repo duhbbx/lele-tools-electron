@@ -1,12 +1,12 @@
 import { join } from 'node:path'
 import { BrowserWindow, app, shell } from 'electron'
-import { closeDb } from './db/sqlite'
+import { closeDb, getDb } from './db/sqlite'
 import { registerAiIpc } from './ipc/ai'
-import { registerCrmIpc, registerCrmProtocol } from './ipc/crm'
 import { registerGithubIpc } from './ipc/github'
 import { registerNotesIpc, registerNotesProtocol } from './ipc/notes'
 import { registerStoreIpc } from './ipc/store'
 import { setupMenu } from './menu'
+import { registerPluginIpc, registerPluginProtocol } from './plugins'
 import { registerAppSchemes } from './schemes'
 
 const isDev = !app.isPackaged
@@ -46,10 +46,10 @@ app.whenReady().then(() => {
   registerStoreIpc()
   registerAiIpc()
   registerGithubIpc()
-  registerCrmIpc()
   registerNotesIpc()
   registerNotesProtocol()
-  registerCrmProtocol()
+  registerPluginIpc({ getDb })
+  registerPluginProtocol()
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

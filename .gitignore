@@ -13,3 +13,6 @@ release/
 *.db-wal
 builder-debug.yml
 *.tgz
+
+# 私有插件（独立 git 仓库，不进开源仓库）
+plugins/

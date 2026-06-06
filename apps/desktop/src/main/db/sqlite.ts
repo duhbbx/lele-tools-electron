@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import Database from 'better-sqlite3'
 import { app } from 'electron'
+import { migratePlugins } from '../plugins.js'
 import { migrate } from './schema.js'
 
 let db: Database.Database | null = null
@@ -13,6 +14,7 @@ export function getDb(): Database.Database {
   db.pragma('journal_mode = WAL')
   db.pragma('foreign_keys = ON')
   migrate(db)
+  migratePlugins(db)
   return db
 }
 

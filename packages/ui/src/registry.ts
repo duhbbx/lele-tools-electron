@@ -25,3 +25,10 @@ export interface ToolMeta {
   icon: string
   load: () => Promise<{ default: Component }>
 }
+
+/** 插件 ui/index.ts 的导出契约（export const plugin: LelePluginUi） */
+export interface LelePluginUi {
+  tools: ToolMeta[]
+  /** 插件文案，合入壳层 i18n 字典 */
+  i18n?: Record<string, Record<Locale, string>>
+}

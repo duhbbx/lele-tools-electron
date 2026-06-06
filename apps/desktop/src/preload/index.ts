@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import type { CrmClientSource, CrmPaymentMethod, WindowApi } from '@lele/shared-types'
+import type { WindowApi } from '@lele/shared-types'
 
 const api: WindowApi = {
   ai: {
@@ -98,110 +98,13 @@ const api: WindowApi = {
     },
     fileToPath: (file: File) => webUtils.getPathForFile(file),
   },
-  crm: {
-    clients: {
-      list: (f?: { q?: string; type?: 'company' | 'person' }) =>
-        ipcRenderer.invoke('crm:clients:list', f),
-      get: (id: number) => ipcRenderer.invoke('crm:clients:get', id),
-      create: (c: {
-        name: string; type: 'company' | 'person'; note?: string; phone?: string; email?: string
-        legalPerson?: string; legalPersonPhone?: string; uscc?: string; regAddress?: string; establishedDate?: string
-        source?: CrmClientSource
-      }) => ipcRenderer.invoke('crm:clients:create', c),
-      update: (
-        id: number,
-        c: {
-          name: string; type: 'company' | 'person'; note: string; phone: string; email: string
-          legalPerson: string; legalPersonPhone: string; uscc: string; regAddress: string; establishedDate: string
-          source: CrmClientSource
-        },
-      ) => ipcRenderer.invoke('crm:clients:update', id, c),
-      remove: (id: number) => ipcRenderer.invoke('crm:clients:remove', id),
-      pickIdCard: (id: number, side: 'front' | 'back') =>
-        ipcRenderer.invoke('crm:clients:pickIdCard', id, side),
-      removeIdCard: (id: number, side: 'front' | 'back') =>
-        ipcRenderer.invoke('crm:clients:removeIdCard', id, side),
-    },
-    contacts: {
-      listByClient: (clientId: number) =>
-        ipcRenderer.invoke('crm:contacts:listByClient', clientId),
-      listAll: (f?: { q?: string; clientId?: number }) =>
-        ipcRenderer.invoke('crm:contacts:listAll', f),
-      get: (id: number) => ipcRenderer.invoke('crm:contacts:get', id),
-      create: (
-        clientId: number,
-        c: {
-          name: string; role?: string; phone?: string; wechat?: string
-          email?: string; sex?: '' | 'male' | 'female'; note?: string
-        },
-      ) => ipcRenderer.invoke('crm:contacts:create', clientId, c),
-      update: (
-        id: number,
-        c: {
-          name: string
-          role: string
-          phone: string
-          wechat: string
-          email: string
-          sex: '' | 'male' | 'female'
-          note: string
-        },
-      ) => ipcRenderer.invoke('crm:contacts:update', id, c),
-      remove: (id: number) => ipcRenderer.invoke('crm:contacts:remove', id),
-    },
-    projects: {
-      listByClient: (clientId: number) =>
-        ipcRenderer.invoke('crm:projects:listByClient', clientId),
-      listAll: (f?: { q?: string; status?: 'active' | 'done'; clientId?: number }) =>
-        ipcRenderer.invoke('crm:projects:listAll', f),
-      get: (id: number) => ipcRenderer.invoke('crm:projects:get', id),
-      create: (
-        clientId: number,
-        p: { name: string; status?: 'active' | 'done'; description?: string; amountCents?: number; shareCents?: number; endDate?: string },
-      ) => ipcRenderer.invoke('crm:projects:create', clientId, p),
-      update: (
-        id: number,
-        p: {
-          name: string
-          status: 'active' | 'done'
-          description: string
-          serverAddr: string
-          domain: string
-          adminUrl: string
-          adminUser: string
-          adminPass: string
-          wxAppId: string
-          wxAppSecret: string
-          wxPayParams: string
-          amountCents: number
-          shareCents: number
-          endDate: string
-          reqCurrent: string
-          reqAdded: string
-          reqFuture: string
-        },
-      ) => ipcRenderer.invoke('crm:projects:update', id, p),
-      remove: (id: number) => ipcRenderer.invoke('crm:projects:remove', id),
-    },
-    payments: {
-      listByProject: (projectId: number) =>
-        ipcRenderer.invoke('crm:payments:listByProject', projectId),
-      add: (projectId: number, p: { amountCents: number; paidAt: string; method: CrmPaymentMethod; note: string }) =>
-        ipcRenderer.invoke('crm:payments:add', projectId, p),
-      remove: (id: number) => ipcRenderer.invoke('crm:payments:remove', id),
-    },
-    files: {
-      listByProject: (projectId: number) =>
-        ipcRenderer.invoke('crm:files:listByProject', projectId),
-      pick: (projectId: number) => ipcRenderer.invoke('crm:files:pick', projectId),
-      open: (id: number) => ipcRenderer.invoke('crm:files:open', id),
-      remove: (id: number) => ipcRenderer.invoke('crm:files:remove', id),
-    },
-    docs: {
-      list: (q?: string) => ipcRenderer.invoke('crm:docs:list', q),
-      pick: () => ipcRenderer.invoke('crm:docs:pick'),
-      open: (id: number) => ipcRenderer.invoke('crm:docs:open', id),
-      remove: (id: number) => ipcRenderer.invoke('crm:docs:remove', id),
+  plugin: {
+    /** 通用 IPC 透传：构建期插件的渲染层据此包自己的带类型客户端（频道命名 模块:实体:操作） */
+    invoke: (channel: string, ...args: unknown[]) => {
+      if (!/^[a-z][\w-]*:[\w:.-]+$/i.test(channel)) {
+        return Promise.reject(new Error(`invalid plugin channel: ${channel}`))
+      }
+      return ipcRenderer.invoke(channel, ...args)
     },
   },
 }

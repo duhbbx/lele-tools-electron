@@ -1,6 +1,6 @@
 # lele-tools-electron
 
-乐乐的工具箱（Electron 版）。Qt 版 lele-tools 的重写：15+ 开发者工具 + CRM + AI 助手 + Markdown 记事本。
+乐乐的工具箱（Electron 版）。Qt 版 lele-tools 的重写：15+ 开发者工具 + AI 助手 + Markdown 记事本，支持私有插件（如 CRM）。
 
 ## 技术栈与结构
 
@@ -8,8 +8,9 @@ Electron 34 / Vue 3.5 / Vite 6（electron-vite）/ TypeScript / SCSS / Monaco Ed
 
 - `apps/desktop` — Electron 壳：`src/main`（主进程：ipc/、db/）、`src/preload`、`src/renderer`（只挂载 @lele/ui 的 Workspace）
 - `packages/ui` — 全部界面与工具实现（Vue 组件库）
-- `packages/shared-types` — 渲染层 ↔ 主进程 IPC 契约（WindowApi）
+- `packages/shared-types` — 渲染层 ↔ 主进程 IPC 契约（WindowApi）+ 插件契约（LelePluginMain/PluginBridge）
 - `apps/website` — 官网
+- `plugins/<id>` — 构建期私有插件（被 .gitignore，各自独立 git 仓库；如 CRM）。设计见 `docs/superpowers/specs/plugin-architecture.md`
 
 ## 常用命令
 
@@ -26,7 +27,8 @@ pnpm dist         # 打包
 ## 模式约定（新增功能照这些套路走）
 
 - **新增工具**：`packages/ui/src/tools/<id>/` 下建 `meta.ts`（ToolMeta）+ `Tool.vue`，在 `tools/index.ts` 注册即可；侧边栏/搜索/标签页自动生效。纯逻辑抽成 `.ts` 纯函数 + 同目录 `.test.ts`。
-- **需要主进程能力的模块**（DB/文件/网络）：参考 CRM 与 notes 模块四件套——
+- **私有插件**（不进开源仓库的功能，如 CRM）：`plugins/<id>/` 独立 workspace 包，`ui/index.ts` 导出 `plugin: LelePluginUi`（tools + i18n），`main/index.ts` 导出 `plugin: LelePluginMain`（id/migrate/registerIpc/resolveFile）；渲染层 IPC 走 `window.api.plugin.invoke` 自包带类型客户端；本地文件走 `plugin-file://<id>/...`。壳层 `import.meta.glob` 自动发现，目录不存在照常构建。
+- **需要主进程能力的模块**（DB/文件/网络）：参考 notes 模块四件套——
   1. `apps/desktop/src/main/db/schema.ts` 加表（全部 `CREATE TABLE IF NOT EXISTS`，增量安全）；
   2. `db/<x>Store.ts` 写 `make<X>Store(db)` 工厂（可用内存库单测）；
   3. `main/ipc/<x>.ts` 写 `register<X>Ipc()`，频道命名 `模块:实体:操作`，在 `main/index.ts` 注册；

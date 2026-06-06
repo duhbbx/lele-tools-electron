@@ -82,109 +82,6 @@ export interface GithubBridge {
   createIssue(fullName: string, title: string, body: string): Promise<{ url: string; number: number }>
 }
 
-/** 客户来源标记；空串=未填 */
-export type CrmClientSource =
-  | '' | 'xiaohongshu' | 'xianyu' | 'referral' | 'wechat' | 'github' | 'website' | 'other'
-/** 收款方式；空串=未填 */
-export type CrmPaymentMethod = '' | 'bank' | 'wechat' | 'alipay' | 'other'
-
-export interface CrmClient {
-  id: number; name: string; type: 'company' | 'person'; note: string
-  phone: string; email: string
-  legalPerson: string; legalPersonPhone: string; uscc: string; regAddress: string; establishedDate: string
-  source: CrmClientSource
-  /** 法人身份证正/反面图片（userData 相对路径，空串=未上传），渲染层经 crm-file:// 协议显示 */
-  idCardFront: string; idCardBack: string
-  createdAt: number
-}
-export interface CrmContact { id: number; clientId: number; name: string; role: string; phone: string; wechat: string; email: string; sex: '' | 'male' | 'female'; note: string; createdAt: number }
-export interface CrmProjectLite { id: number; name: string; status: string }
-export interface CrmProject {
-  id: number; clientId: number; name: string; status: 'active' | 'done'
-  description: string; serverAddr: string; domain: string; adminUrl: string; adminUser: string; adminPass: string
-  wxAppId: string; wxAppSecret: string; wxPayParams: string
-  amountCents: number; shareCents: number; endDate: string
-  /** 需求分区：当前需求 / 本期追加需求 / 后期需求 */
-  reqCurrent: string; reqAdded: string; reqFuture: string
-  createdAt: number; updatedAt: number
-}
-export interface CrmPayment { id: number; projectId: number; amountCents: number; paidAt: string; method: CrmPaymentMethod; note: string }
-export interface CrmFile { id: number; projectId: number; name: string; storedPath: string; size: number; uploadedAt: number }
-/** CRM 文档库（合同模板、公司介绍等，不挂在具体项目下） */
-export interface CrmDoc { id: number; name: string; storedPath: string; size: number; uploadedAt: number }
-
-export interface CrmClientFilter { q?: string; type?: 'company' | 'person' }
-export interface CrmContactFilter { q?: string; clientId?: number }
-export interface CrmProjectFilter { q?: string; status?: 'active' | 'done'; clientId?: number }
-export interface CrmContactWithClient extends CrmContact { clientName: string }
-export interface CrmProjectListItem {
-  id: number; clientId: number; name: string; status: 'active' | 'done'
-  clientName: string; amountCents: number; shareCents: number; endDate: string
-}
-
-export interface CrmClientInput {
-  name: string; type: 'company' | 'person'
-  note?: string; phone?: string; email?: string
-  legalPerson?: string; legalPersonPhone?: string; uscc?: string; regAddress?: string; establishedDate?: string
-  source?: CrmClientSource
-}
-export interface CrmContactInput {
-  name: string
-  role?: string; phone?: string; wechat?: string; email?: string; sex?: '' | 'male' | 'female'; note?: string
-}
-export interface CrmProjectInput {
-  name: string
-  status?: 'active' | 'done'; description?: string; amountCents?: number; shareCents?: number; endDate?: string
-}
-
-export interface CrmBridge {
-  clients: {
-    list(f?: CrmClientFilter): Promise<CrmClient[]>
-    get(id: number): Promise<CrmClient | null>
-    create(c: CrmClientInput): Promise<number>
-    update(id: number, c: Omit<CrmClient, 'id' | 'createdAt' | 'idCardFront' | 'idCardBack'>): Promise<void>
-    remove(id: number): Promise<void>
-    /** 弹文件框选身份证图片 → 拷贝入 userData → 更新列；返回存储相对路径，取消返回 null */
-    pickIdCard(id: number, side: 'front' | 'back'): Promise<string | null>
-    removeIdCard(id: number, side: 'front' | 'back'): Promise<void>
-  }
-  contacts: {
-    listByClient(clientId: number): Promise<CrmContact[]>
-    listAll(f?: CrmContactFilter): Promise<CrmContactWithClient[]>
-    get(id: number): Promise<CrmContact | null>
-    create(clientId: number, c: CrmContactInput): Promise<number>
-    update(id: number, c: Omit<CrmContact, 'id' | 'clientId' | 'createdAt'>): Promise<void>
-    remove(id: number): Promise<void>
-  }
-  projects: {
-    listByClient(clientId: number): Promise<CrmProjectLite[]>
-    listAll(f?: CrmProjectFilter): Promise<CrmProjectListItem[]>
-    get(id: number): Promise<CrmProject | null>
-    create(clientId: number, p: CrmProjectInput): Promise<number>
-    update(id: number, p: Omit<CrmProject, 'id' | 'clientId' | 'createdAt' | 'updatedAt'>): Promise<void>
-    remove(id: number): Promise<void>
-  }
-  payments: {
-    listByProject(projectId: number): Promise<CrmPayment[]>
-    add(projectId: number, p: { amountCents: number; paidAt: string; method: CrmPaymentMethod; note: string }): Promise<number>
-    remove(id: number): Promise<void>
-  }
-  files: {
-    listByProject(projectId: number): Promise<CrmFile[]>
-    /** 弹系统文件选择框（可多选）→ 拷贝到 userData/crm-files/<projectId>/ → 入库；取消返回 null */
-    pick(projectId: number): Promise<CrmFile[] | null>
-    open(id: number): Promise<void>
-    remove(id: number): Promise<void>
-  }
-  docs: {
-    list(q?: string): Promise<CrmDoc[]>
-    /** 弹系统文件选择框（可多选）→ 拷贝到 userData/crm-files/docs/ → 入库；取消返回 null */
-    pick(): Promise<CrmDoc[] | null>
-    open(id: number): Promise<void>
-    remove(id: number): Promise<void>
-  }
-}
-
 export interface NoteFolder { id: number; parentId: number | null; name: string; createdAt: number }
 export interface NoteListItem { id: number; folderId: number | null; title: string; updatedAt: number }
 export interface Note { id: number; folderId: number | null; title: string; content: string; createdAt: number; updatedAt: number }
@@ -236,6 +133,29 @@ export interface NotesBridge {
   fileToPath(file: File): string
 }
 
+// ── 构建期插件契约（plugins/<id>/，见 docs/superpowers/specs/plugin-architecture.md） ──
+
+export interface PluginMainContext {
+  /** better-sqlite3 Database；shared-types 不依赖其类型，两侧各自收窄 */
+  getDb(): unknown
+}
+
+/** plugins/<id>/main/index.ts 的导出契约（export const plugin: LelePluginMain） */
+export interface LelePluginMain {
+  /** 插件 id，同时是 plugin-file://<id>/ 的 hostname */
+  id: string
+  /** 基础 migrate 之后调用；自管 CREATE TABLE IF NOT EXISTS + 守护补列（幂等） */
+  migrate?(db: unknown): void
+  registerIpc?(ctx: PluginMainContext): void
+  /** plugin-file://<id>/... 的本地文件解析器（渲染层 <img> 等用） */
+  resolveFile?(url: URL): Response | Promise<Response>
+}
+
+export interface PluginBridge {
+  /** 通用 IPC 透传；插件渲染层据此包自己的带类型客户端 */
+  invoke(channel: string, ...args: unknown[]): Promise<unknown>
+}
+
 export interface WindowApi {
   ai: AiBridge
   store: StoreBridge
@@ -243,6 +163,6 @@ export interface WindowApi {
   chats: ChatsBridge
   menu: MenuBridge
   github: GithubBridge
-  crm: CrmBridge
   notes: NotesBridge
+  plugin: PluginBridge
 }
