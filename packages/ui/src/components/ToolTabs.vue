@@ -1,48 +1,47 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { locale, t } from '../i18n'
-import { toolById } from '../tools'
+import { t } from '../i18n'
 
-defineProps<{ tabs: string[]; active: string | null }>()
-const emit = defineEmits<{ activate: [id: string]; close: [id: string]; reorder: [fromId: string, toId: string] }>()
+defineProps<{ tabs: { key: string; title: string; icon: string }[]; active: string | null }>()
+const emit = defineEmits<{ activate: [key: string]; close: [key: string]; reorder: [fromKey: string, toKey: string] }>()
 
-const draggingId = ref<string | null>(null)
+const draggingKey = ref<string | null>(null)
 
-function onDragStart(e: DragEvent, id: string): void {
-  draggingId.value = id
+function onDragStart(e: DragEvent, key: string): void {
+  draggingKey.value = key
   e.dataTransfer!.effectAllowed = 'move'
 }
 
-function onDrop(e: DragEvent, toId: string): void {
+function onDrop(e: DragEvent, toKey: string): void {
   e.preventDefault()
-  if (draggingId.value && draggingId.value !== toId) {
-    emit('reorder', draggingId.value, toId)
+  if (draggingKey.value && draggingKey.value !== toKey) {
+    emit('reorder', draggingKey.value, toKey)
   }
-  draggingId.value = null
+  draggingKey.value = null
 }
 
 function onDragEnd(): void {
-  draggingId.value = null
+  draggingKey.value = null
 }
 </script>
 
 <template>
   <div class="tool-tabs">
     <div
-      v-for="id in tabs"
-      :key="id"
+      v-for="tab in tabs"
+      :key="tab.key"
       class="tab"
-      :class="{ active: id === active, dragging: id === draggingId }"
+      :class="{ active: tab.key === active, dragging: tab.key === draggingKey }"
       draggable="true"
-      @click="emit('activate', id)"
-      @auxclick.middle="emit('close', id)"
-      @dragstart="onDragStart($event, id)"
+      @click="emit('activate', tab.key)"
+      @auxclick.middle="emit('close', tab.key)"
+      @dragstart="onDragStart($event, tab.key)"
       @dragover.prevent
-      @drop="onDrop($event, id)"
+      @drop="onDrop($event, tab.key)"
       @dragend="onDragEnd"
     >
-      <span>{{ toolById(id)?.icon }} {{ toolById(id)?.name[locale] ?? id }}</span>
-      <button class="x" :title="t('tabs.close')" @click.stop="emit('close', id)">×</button>
+      <span>{{ tab.icon }} {{ tab.title }}</span>
+      <button class="x" :title="t('tabs.close')" @click.stop="emit('close', tab.key)">×</button>
     </div>
   </div>
 </template>
