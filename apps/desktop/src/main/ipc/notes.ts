@@ -83,14 +83,8 @@ function buildPdfHtml(title: string, bodyHtml: string, watermark: string): strin
   return `<!doctype html><html><head><meta charset="utf-8">${csp}<title>${escapeHtml(title)}</title><style>${PDF_STYLE}</style></head><body>${wm}${bodyHtml}</body></html>`
 }
 
-/** 必须在 app ready 之前调用：让 notes-file:// 可被 <img>/<audio>/<video>/fetch 使用 */
-export function registerNotesScheme(): void {
-  protocol.registerSchemesAsPrivileged([
-    { scheme: 'notes-file', privileges: { secure: true, supportFetchAPI: true, stream: true } },
-  ])
-}
-
-/** app ready 之后调用：notes-file://<fileId>/<name> → 附件目录里的真实文件 */
+/** app ready 之后调用：notes-file://<fileId>/<name> → 附件目录里的真实文件
+ *  （scheme 特权声明集中在 ../schemes.ts 的 registerAppSchemes） */
 export function registerNotesProtocol(): void {
   protocol.handle('notes-file', (request) => {
     const id = Number(new URL(request.url).hostname)
@@ -115,11 +109,8 @@ export function registerNotesIpc(): void {
   ipcMain.handle('notes:folders:move', (_e, id: number, parentId: number | null) =>
     s().folders.move(id, parentId),
   )
-  ipcMain.handle('notes:folders:remove', (_e, id: number) => {
-    const noteIds = s().folders.collectDescendantNoteIds(id)
-    s().folders.remove(id)
-    removeNoteDirs(noteIds)
-  })
+  // 删文件夹：子树笔记进回收站（附件保留，彻底删除时才清理）
+  ipcMain.handle('notes:folders:remove', (_e, id: number) => s().folders.remove(id))
 
   // notes
   ipcMain.handle('notes:list', () => s().notes.list())
@@ -132,9 +123,19 @@ export function registerNotesIpc(): void {
   ipcMain.handle('notes:move', (_e, id: number, folderId: number | null) =>
     s().notes.move(id, folderId),
   )
-  ipcMain.handle('notes:remove', (_e, id: number) => {
-    s().notes.remove(id)
+  // 软删进回收站，附件目录保留
+  ipcMain.handle('notes:remove', (_e, id: number) => s().notes.remove(id))
+
+  // trash
+  ipcMain.handle('notes:trash:list', () => s().trash.list())
+  ipcMain.handle('notes:trash:restore', (_e, id: number) => s().trash.restore(id))
+  ipcMain.handle('notes:trash:removeForever', (_e, id: number) => {
+    s().trash.removeForever(id)
     removeNoteDirs([id])
+  })
+  ipcMain.handle('notes:trash:empty', () => {
+    const ids = s().trash.empty()
+    removeNoteDirs(ids)
   })
 
   // files

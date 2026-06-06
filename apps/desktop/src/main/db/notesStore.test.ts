@@ -49,13 +49,57 @@ describe('notes CRUD', () => {
     store.notes.move(n1, fid)
     expect(store.notes.get(n1)?.folderId).toBe(fid)
 
+    // 删除 = 软删进回收站
     store.notes.remove(n1)
-    expect(store.notes.get(n1)).toBeNull()
+    expect(store.notes.list().map((n) => n.id)).not.toContain(n1)
+    expect(store.trash.list().map((n) => n.id)).toContain(n1)
+  })
+})
+
+describe('trash', () => {
+  it('软删后 list/search 不可见，restore 原位恢复', () => {
+    const fid = store.folders.create(null, '工作')
+    const n = store.notes.create(fid)
+    store.notes.update(n, { title: '会议纪要', content: '内容' })
+    store.notes.remove(n)
+    expect(store.notes.list()).toHaveLength(0)
+    expect(store.notes.search('会议')).toHaveLength(0)
+    store.trash.restore(n)
+    expect(store.trash.list()).toHaveLength(0)
+    expect(store.notes.list().find((x) => x.id === n)?.folderId).toBe(fid) // 原文件夹还在 → 原位
+  })
+
+  it('删文件夹：子树笔记脱挂进回收站而非真删，restore 回根目录', () => {
+    const top = store.folders.create(null, '顶层')
+    const sub = store.folders.create(top, '子层')
+    const n = store.notes.create(sub)
+    store.folders.remove(top)
+    expect(store.folders.list()).toHaveLength(0)
+    expect(store.trash.list().map((x) => x.id)).toContain(n)
+    store.trash.restore(n)
+    expect(store.notes.list().find((x) => x.id === n)?.folderId).toBeNull() // 文件夹没了 → 回根
+  })
+
+  it('removeForever 真删（含附件行级联），empty 清空并返回 id 列表', () => {
+    const a = store.notes.create(null)
+    const b = store.notes.create(null)
+    store.files.add(a, { name: 'x.png', storedPath: `notes-files/${a}/x.png`, mime: 'image/png', size: 1 })
+    store.notes.remove(a)
+    store.notes.remove(b)
+    store.trash.removeForever(a)
+    expect(store.notes.get(a)).toBeNull()
+    expect(store.files.listByNote(a)).toHaveLength(0)
+    // removeForever 只动回收站里的行
+    const c = store.notes.create(null)
+    store.trash.removeForever(c)
+    expect(store.notes.get(c)).not.toBeNull()
+    expect(store.trash.empty().sort()).toEqual([b])
+    expect(store.trash.list()).toHaveLength(0)
   })
 })
 
 describe('files + cascade', () => {
-  it('lists files by note; deleting folder cascades nested notes and file rows', () => {
+  it('lists files by note; deleting folder moves nested notes to trash, file rows survive', () => {
     const top = store.folders.create(null, '顶层')
     const sub = store.folders.create(top, '子层')
     const n = store.notes.create(sub)
@@ -64,8 +108,10 @@ describe('files + cascade', () => {
 
     store.folders.remove(top)
     expect(store.folders.list()).toHaveLength(0)
-    expect(store.notes.get(n)).toBeNull()
-    expect(store.files.listByNote(n)).toHaveLength(0)
+    // 笔记进回收站（FK 级联不再误删），附件行保留到彻底删除
+    expect(store.notes.list()).toHaveLength(0)
+    expect(store.trash.list().map((x) => x.id)).toContain(n)
+    expect(store.files.listByNote(n)).toHaveLength(1)
   })
 
   it('collectDescendantNoteIds returns notes at any depth (three-level nesting)', () => {

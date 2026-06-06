@@ -96,8 +96,21 @@ export function makeNotesStore(db: Database.Database) {
       move(id: number, parentId: number | null): void {
         db.prepare('UPDATE notes_folders SET parent_id = ? WHERE id = ?').run(parentId, id)
       },
+      /** 删文件夹：子树笔记先脱挂（folder_id 置空）并丢进回收站，再删文件夹行——
+       *  否则 notes.folder_id 的 ON DELETE CASCADE 会把笔记连带真删 */
       remove(id: number): void {
-        db.prepare('DELETE FROM notes_folders WHERE id = ?').run(id)
+        db.transaction(() => {
+          db.prepare(
+            `WITH RECURSIVE sub(id) AS (
+               SELECT ?
+               UNION
+               SELECT f.id FROM notes_folders f JOIN sub ON f.parent_id = sub.id
+             )
+             UPDATE notes SET folder_id = NULL, deleted_at = COALESCE(deleted_at, ?)
+             WHERE folder_id IN (SELECT id FROM sub)`,
+          ).run(id, Date.now())
+          db.prepare('DELETE FROM notes_folders WHERE id = ?').run(id)
+        })()
       },
       /** 该文件夹（含任意深度子文件夹）下所有笔记 id；删除前先收集，用于清理附件目录 */
       collectDescendantNoteIds(folderId: number): number[] {
@@ -118,7 +131,9 @@ export function makeNotesStore(db: Database.Database) {
     notes: {
       list(): NoteListItemRow[] {
         const rows = db
-          .prepare('SELECT id, folder_id, title, updated_at FROM notes ORDER BY updated_at DESC')
+          .prepare(
+            'SELECT id, folder_id, title, updated_at FROM notes WHERE deleted_at IS NULL ORDER BY updated_at DESC',
+          )
           .all() as Record<string, unknown>[]
         return rows.map(mapNoteListItem)
       },
@@ -148,18 +163,45 @@ export function makeNotesStore(db: Database.Database) {
       move(id: number, folderId: number | null): void {
         db.prepare('UPDATE notes SET folder_id = ? WHERE id = ?').run(folderId, id)
       },
+      /** 软删：进回收站 */
       remove(id: number): void {
-        db.prepare('DELETE FROM notes WHERE id = ?').run(id)
+        db.prepare('UPDATE notes SET deleted_at = ? WHERE id = ?').run(Date.now(), id)
       },
       /** 标题/正文 LIKE 搜索；通配符转义 */
       search(query: string): NoteListItemRow[] {
         const like = `%${query.replace(/[\\%_]/g, (c) => `\\${c}`)}%`
         const rows = db
           .prepare(
-            "SELECT id, folder_id, title, updated_at FROM notes WHERE title LIKE ? ESCAPE '\\' OR content LIKE ? ESCAPE '\\' ORDER BY updated_at DESC",
+            "SELECT id, folder_id, title, updated_at FROM notes WHERE deleted_at IS NULL AND (title LIKE ? ESCAPE '\\' OR content LIKE ? ESCAPE '\\') ORDER BY updated_at DESC",
           )
           .all(like, like) as Record<string, unknown>[]
         return rows.map(mapNoteListItem)
+      },
+    },
+
+    trash: {
+      list(): NoteListItemRow[] {
+        const rows = db
+          .prepare(
+            'SELECT id, folder_id, title, updated_at FROM notes WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC',
+          )
+          .all() as Record<string, unknown>[]
+        return rows.map(mapNoteListItem)
+      },
+      /** 恢复：原文件夹可能已删（删文件夹时已把笔记 folder_id 置空），原位或回根 */
+      restore(id: number): void {
+        db.prepare('UPDATE notes SET deleted_at = NULL WHERE id = ?').run(id)
+      },
+      removeForever(id: number): void {
+        db.prepare('DELETE FROM notes WHERE id = ? AND deleted_at IS NOT NULL').run(id)
+      },
+      /** 清空回收站；返回被删笔记 id 供调用方清理附件目录 */
+      empty(): number[] {
+        const ids = (
+          db.prepare('SELECT id FROM notes WHERE deleted_at IS NOT NULL').all() as { id: number }[]
+        ).map((r) => r.id)
+        db.prepare('DELETE FROM notes WHERE deleted_at IS NOT NULL').run()
+        return ids
       },
     },
 

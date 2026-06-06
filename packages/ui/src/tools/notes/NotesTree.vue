@@ -11,6 +11,10 @@ const folders = ref<NoteFolder[]>([])
 const notes = ref<NoteListItem[]>([])
 const expanded = ref(new Set<number>())
 
+// 回收站
+const trash = ref<NoteListItem[]>([])
+const trashOpen = ref(false)
+
 // 内联新建文件夹：false=没在加；number|null=在该文件夹（null=根）下加
 const addingFolderIn = ref<number | null | false>(false)
 const newFolderName = ref('')
@@ -54,6 +58,7 @@ async function refresh(): Promise<void> {
   try {
     folders.value = (await window.api?.notes?.folders?.list?.()) ?? []
     notes.value = (await window.api?.notes?.list?.()) ?? []
+    trash.value = (await window.api?.notes?.trash?.list?.()) ?? []
     if (searchResults.value !== null && searchText.value.trim()) {
       searchResults.value = (await window.api?.notes?.search?.(searchText.value.trim())) ?? []
     }
@@ -185,7 +190,17 @@ async function executeDelete(key: string): Promise<void> {
   const id = Number(idStr)
   try {
     if (kind === 'folder') {
+      // 子树笔记进回收站；当前打开的笔记若在其中也会被软删，关掉编辑区
+      const wasOpen = props.selectedId
       await window.api?.notes?.folders?.remove?.(id)
+      await refresh()
+      if (wasOpen !== null && trash.value.some((n) => n.id === wasOpen)) emit('removed', wasOpen)
+      return
+    }
+    if (kind === 'trash') {
+      await window.api?.notes?.trash?.removeForever?.(id)
+    } else if (kind === 'trash-empty') {
+      await window.api?.notes?.trash?.empty?.()
     } else {
       await window.api?.notes?.remove?.(id)
       emit('removed', id)
@@ -193,6 +208,16 @@ async function executeDelete(key: string): Promise<void> {
     await refresh()
   } catch (e) {
     console.warn('[NotesTree] delete error', e)
+  }
+}
+
+// ── 回收站：恢复 ─────────────────────────────────────────────────────────────
+async function restoreNote(id: number): Promise<void> {
+  try {
+    await window.api?.notes?.trash?.restore?.(id)
+    await refresh()
+  } catch (e) {
+    console.warn('[NotesTree] restore error', e)
   }
 }
 
@@ -348,6 +373,33 @@ async function onDrop(e: DragEvent, targetFolderId: number | null): Promise<void
         >{{ pendingDelete === `note:${row.id}` ? t('notes.confirmDelete') : '×' }}</button>
       </div>
     </template>
+
+    <!-- 回收站 -->
+    <div v-if="trash.length" class="trash-section">
+      <div class="tree-row trash-head" @click="trashOpen = !trashOpen">
+        <span class="arrow">{{ trashOpen ? '▾' : '▸' }}</span>
+        <span class="row-icon">🗑</span>
+        <span class="row-label">{{ t('notes.trash') }}（{{ trash.length }}）</span>
+        <button
+          v-if="trashOpen"
+          class="btn-del"
+          :class="{ confirming: pendingDelete === 'trash-empty' }"
+          @click.stop="startDelete('trash-empty')"
+        >{{ pendingDelete === 'trash-empty' ? t('notes.confirmDelete') : t('notes.emptyTrash') }}</button>
+      </div>
+      <template v-if="trashOpen">
+        <div v-for="n in trash" :key="`trash-${n.id}`" class="tree-row trash-row">
+          <span class="row-icon">📄</span>
+          <span class="row-label dim">{{ n.title || t('notes.untitled') }}</span>
+          <button class="btn-icon small restore" :title="t('notes.restore')" @click.stop="restoreNote(n.id)">↩</button>
+          <button
+            class="btn-del"
+            :class="{ confirming: pendingDelete === `trash:${n.id}` }"
+            @click.stop="startDelete(`trash:${n.id}`)"
+          >{{ pendingDelete === `trash:${n.id}` ? t('notes.confirmDelete') : '×' }}</button>
+        </div>
+      </template>
+    </div>
   </div>
 </template>
 
@@ -444,6 +496,25 @@ async function onDrop(e: DragEvent, targetFolderId: number | null): Promise<void
 
     &:hover { background: var(--bg-hover); color: var(--fg); }
     &.small { opacity: 0; }
+  }
+
+  .trash-section {
+    margin-top: 10px;
+    border-top: 1px solid var(--border);
+    padding-top: 4px;
+
+    .trash-head .row-label { color: var(--fg-dim); }
+
+    .trash-row {
+      padding-left: 24px;
+
+      .row-label.dim { color: var(--fg-dim); }
+
+      .restore {
+        font-size: 13px;
+        &:hover { color: var(--accent); }
+      }
+    }
   }
 
   .btn-del {
