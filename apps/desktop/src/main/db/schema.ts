@@ -20,7 +20,11 @@ export function migrate(db: Database.Database): void {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL, type TEXT NOT NULL DEFAULT 'company',
       note TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL,
-      deleted_at INTEGER
+      deleted_at INTEGER,
+      phone TEXT NOT NULL DEFAULT '', email TEXT NOT NULL DEFAULT '',
+      legal_person TEXT NOT NULL DEFAULT '', legal_person_phone TEXT NOT NULL DEFAULT '',
+      uscc TEXT NOT NULL DEFAULT '', reg_address TEXT NOT NULL DEFAULT '',
+      established_date TEXT NOT NULL DEFAULT ''
     );
     CREATE TABLE IF NOT EXISTS crm_contacts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -28,7 +32,7 @@ export function migrate(db: Database.Database): void {
       name TEXT NOT NULL, role TEXT NOT NULL DEFAULT '', phone TEXT NOT NULL DEFAULT '',
       wechat TEXT NOT NULL DEFAULT '', email TEXT NOT NULL DEFAULT '',
       note TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL,
-      deleted_at INTEGER
+      deleted_at INTEGER, sex TEXT NOT NULL DEFAULT ''
     );
     CREATE TABLE IF NOT EXISTS crm_projects (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -77,11 +81,24 @@ export function migrate(db: Database.Database): void {
     );
   `)
 
-  // CRM 软删除列：CREATE TABLE IF NOT EXISTS 不会给已存在的老库加列，这里守护式补
-  for (const table of ['crm_clients', 'crm_contacts', 'crm_projects']) {
+  // CRM 增量列：CREATE TABLE IF NOT EXISTS 不会给已存在的老库加列，这里守护式补
+  const GUARDED_COLUMNS: [table: string, column: string, ddl: string][] = [
+    ['crm_clients', 'deleted_at', 'deleted_at INTEGER'],
+    ['crm_contacts', 'deleted_at', 'deleted_at INTEGER'],
+    ['crm_projects', 'deleted_at', 'deleted_at INTEGER'],
+    ['crm_clients', 'phone', "phone TEXT NOT NULL DEFAULT ''"],
+    ['crm_clients', 'email', "email TEXT NOT NULL DEFAULT ''"],
+    ['crm_clients', 'legal_person', "legal_person TEXT NOT NULL DEFAULT ''"],
+    ['crm_clients', 'legal_person_phone', "legal_person_phone TEXT NOT NULL DEFAULT ''"],
+    ['crm_clients', 'uscc', "uscc TEXT NOT NULL DEFAULT ''"],
+    ['crm_clients', 'reg_address', "reg_address TEXT NOT NULL DEFAULT ''"],
+    ['crm_clients', 'established_date', "established_date TEXT NOT NULL DEFAULT ''"],
+    ['crm_contacts', 'sex', "sex TEXT NOT NULL DEFAULT ''"],
+  ]
+  for (const [table, column, ddl] of GUARDED_COLUMNS) {
     const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]
-    if (!cols.some((c) => c.name === 'deleted_at')) {
-      db.exec(`ALTER TABLE ${table} ADD COLUMN deleted_at INTEGER`)
+    if (!cols.some((c) => c.name === column)) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl}`)
     }
   }
 }

@@ -165,3 +165,36 @@ describe('filtered queries', () => {
     expect(store.projects.listAll()).toHaveLength(1)
   })
 })
+
+describe('extended field columns migration', () => {
+  const CLIENT_COLS = [
+    'phone', 'email', 'legal_person', 'legal_person_phone', 'uscc', 'reg_address', 'established_date',
+  ]
+
+  it('crm_clients 七个新列与 crm_contacts.sex 存在', () => {
+    const clientCols = db.prepare('PRAGMA table_info(crm_clients)').all() as { name: string }[]
+    for (const c of CLIENT_COLS) {
+      expect(clientCols.some((x) => x.name === c), c).toBe(true)
+    }
+    const contactCols = db.prepare('PRAGMA table_info(crm_contacts)').all() as { name: string }[]
+    expect(contactCols.some((x) => x.name === 'sex')).toBe(true)
+  })
+
+  it('老库（无新列）迁移时走 ALTER 补齐', () => {
+    const oldDb = new Database(':memory:')
+    oldDb.exec(
+      "CREATE TABLE crm_clients (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, type TEXT NOT NULL DEFAULT 'company', note TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL)",
+    )
+    oldDb.exec(
+      "CREATE TABLE crm_contacts (id INTEGER PRIMARY KEY AUTOINCREMENT, client_id INTEGER NOT NULL, name TEXT NOT NULL, role TEXT NOT NULL DEFAULT '', phone TEXT NOT NULL DEFAULT '', wechat TEXT NOT NULL DEFAULT '', email TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL)",
+    )
+    expect(() => migrate(oldDb)).not.toThrow()
+    const clientCols = oldDb.prepare('PRAGMA table_info(crm_clients)').all() as { name: string }[]
+    for (const c of CLIENT_COLS) {
+      expect(clientCols.some((x) => x.name === c), c).toBe(true)
+    }
+    const contactCols = oldDb.prepare('PRAGMA table_info(crm_contacts)').all() as { name: string }[]
+    expect(contactCols.some((x) => x.name === 'sex')).toBe(true)
+    oldDb.close()
+  })
+})
