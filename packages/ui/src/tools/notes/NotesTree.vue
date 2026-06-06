@@ -111,8 +111,9 @@ function startRename(row: Row): void {
 }
 
 async function confirmRename(): Promise<void> {
+  if (renamingId.value === null) return // Esc 后的 blur 直接退出
   const name = renameText.value.trim()
-  if (renamingId.value !== null && name) {
+  if (name) {
     await window.api?.notes?.folders?.rename?.(renamingId.value, name)
   }
   renamingId.value = null
@@ -184,8 +185,13 @@ async function onDrop(e: DragEvent, targetFolderId: number | null): Promise<void
   dropTarget.value = null
   const raw = e.dataTransfer?.getData('application/x-lele-note')
   if (!raw) return
-  e.stopPropagation()
-  const { kind, id } = JSON.parse(raw) as { kind: 'folder' | 'note'; id: number }
+  let parsed: { kind: 'folder' | 'note'; id: number }
+  try {
+    parsed = JSON.parse(raw) as { kind: 'folder' | 'note'; id: number }
+  } catch {
+    return
+  }
+  const { kind, id } = parsed
   if (kind === 'note') {
     await window.api?.notes?.move?.(id, targetFolderId)
   } else {
@@ -238,7 +244,7 @@ async function onDrop(e: DragEvent, targetFolderId: number | null): Promise<void
         @dragstart="onDragStart($event, row)"
         @dragover.prevent.stop="dropTarget = `folder:${row.id}`"
         @dragleave.stop="dropTarget = null"
-        @drop.prevent="onDrop($event, row.id)"
+        @drop.prevent.stop="onDrop($event, row.id)"
       >
         <span class="arrow">{{ row.open ? '▾' : '▸' }}</span>
         <span class="row-icon">📁</span>
