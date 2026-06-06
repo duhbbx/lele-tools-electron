@@ -79,7 +79,8 @@ function buildPdfHtml(title: string, bodyHtml: string, watermark: string): strin
   const wm = watermark
     ? `<div class="watermark">${Array.from({ length: 24 }, () => `<span>${escapeHtml(watermark)}</span>`).join('')}</div>`
     : ''
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>${PDF_STYLE}</style></head><body>${wm}${bodyHtml}</body></html>`
+  const csp = `<meta http-equiv="Content-Security-Policy" content="default-src 'self' notes-file:; script-src 'none'; style-src 'unsafe-inline'; img-src 'self' notes-file:; media-src 'self' notes-file:">`
+  return `<!doctype html><html><head><meta charset="utf-8">${csp}<title>${escapeHtml(title)}</title><style>${PDF_STYLE}</style></head><body>${wm}${bodyHtml}</body></html>`
 }
 
 /** 必须在 app ready 之前调用：让 notes-file:// 可被 <img>/<audio>/<video>/fetch 使用 */
@@ -175,9 +176,9 @@ export function registerNotesIpc(): void {
     })
     if (result.canceled || !result.filePath) return null
     const tmp = join(app.getPath('temp'), `lele-note-${Date.now()}.html`)
-    writeFileSync(tmp, buildPdfHtml(title, html, watermark))
-    const win = new BrowserWindow({ show: false, webPreferences: { sandbox: true } })
+    const win = new BrowserWindow({ show: false, webPreferences: { sandbox: true, javascript: false } })
     try {
+      writeFileSync(tmp, buildPdfHtml(title, html, watermark))
       await win.loadFile(tmp)
       // did-finish-load 后再等一拍，让 notes-file:// 图片完成解码
       await new Promise((r) => setTimeout(r, 300))

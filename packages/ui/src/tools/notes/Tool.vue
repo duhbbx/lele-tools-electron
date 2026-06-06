@@ -115,20 +115,28 @@ const watermarkOn = ref(localStorage.getItem('notes.watermarkOn') === '1')
 const watermarkText = ref(localStorage.getItem('notes.watermarkText') ?? '')
 const exportMsg = ref('')
 
+let exporting = false
+
 async function doExport(): Promise<void> {
-  if (!note.value) return
-  showExport.value = false
-  localStorage.setItem('notes.watermarkOn', watermarkOn.value ? '1' : '0')
-  localStorage.setItem('notes.watermarkText', watermarkText.value)
-  await flush()
-  const html = previewRef.value?.getHtml() ?? ''
-  const wm = watermarkOn.value ? watermarkText.value.trim() : ''
-  const path = await window.api?.notes?.exportPdf?.(note.value.title || t('notes.untitled'), html, wm)
-  if (path) {
-    exportMsg.value = t('notes.exported')
-    setTimeout(() => {
-      exportMsg.value = ''
-    }, 3000)
+  if (!note.value || exporting) return
+  exporting = true
+  try {
+    showExport.value = false
+    localStorage.setItem('notes.watermarkOn', watermarkOn.value ? '1' : '0')
+    localStorage.setItem('notes.watermarkText', watermarkText.value)
+    await flush()
+    if (!note.value) return
+    const html = previewRef.value?.getHtml() ?? ''
+    const wm = watermarkOn.value ? watermarkText.value.trim() : ''
+    const path = await window.api?.notes?.exportPdf?.(note.value.title || t('notes.untitled'), html, wm)
+    if (path) {
+      exportMsg.value = t('notes.exported')
+      setTimeout(() => {
+        exportMsg.value = ''
+      }, 3000)
+    }
+  } finally {
+    exporting = false
   }
 }
 </script>
