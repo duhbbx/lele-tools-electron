@@ -105,7 +105,7 @@ export function makeNotesStore(db: Database.Database) {
           .prepare(
             `WITH RECURSIVE sub(id) AS (
                SELECT ?
-               UNION ALL
+               UNION
                SELECT f.id FROM notes_folders f JOIN sub ON f.parent_id = sub.id
              )
              SELECT n.id FROM notes n WHERE n.folder_id IN (SELECT id FROM sub)`,

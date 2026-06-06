@@ -68,11 +68,12 @@ describe('files + cascade', () => {
     expect(store.files.listByNote(n)).toHaveLength(0)
   })
 
-  it('collectDescendantNoteIds returns notes in folder and all nested subfolders', () => {
+  it('collectDescendantNoteIds returns notes at any depth (three-level nesting)', () => {
     const top = store.folders.create(null, '顶层')
-    const sub = store.folders.create(top, '子层')
+    const mid = store.folders.create(top, '中层')
+    const leaf = store.folders.create(mid, '叶层')
     const n1 = store.notes.create(top)
-    const n2 = store.notes.create(sub)
+    const n2 = store.notes.create(leaf)
     const outside = store.notes.create(null)
     const ids = store.folders.collectDescendantNoteIds(top)
     expect(ids.sort()).toEqual([n1, n2].sort())
