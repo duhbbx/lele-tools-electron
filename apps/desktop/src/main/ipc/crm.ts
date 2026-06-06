@@ -12,7 +12,10 @@ function s(): ReturnType<typeof makeCrmStore> {
 
 export function registerCrmIpc(): void {
   // clients
-  ipcMain.handle('crm:clients:list', () => s().clients.list())
+  ipcMain.handle('crm:clients:list', (_e, f?: { q?: string; type?: 'company' | 'person' }) =>
+    s().clients.list(f),
+  )
+  ipcMain.handle('crm:clients:get', (_e, id: number) => s().clients.get(id))
   ipcMain.handle('crm:clients:create', (_e, name: string, type: 'company' | 'person') =>
     s().clients.create({ name, type, note: '' }),
   )
@@ -26,6 +29,9 @@ export function registerCrmIpc(): void {
   // contacts
   ipcMain.handle('crm:contacts:listByClient', (_e, clientId: number) =>
     s().contacts.listByClient(clientId),
+  )
+  ipcMain.handle('crm:contacts:listAll', (_e, f?: { q?: string; clientId?: number }) =>
+    s().contacts.listAll(f),
   )
   ipcMain.handle('crm:contacts:get', (_e, id: number) => s().contacts.get(id))
   ipcMain.handle('crm:contacts:create', (_e, clientId: number, name: string) =>
@@ -44,6 +50,11 @@ export function registerCrmIpc(): void {
   // projects
   ipcMain.handle('crm:projects:listByClient', (_e, clientId: number) =>
     s().projects.listByClient(clientId),
+  )
+  ipcMain.handle(
+    'crm:projects:listAll',
+    (_e, f?: { q?: string; status?: 'active' | 'done'; clientId?: number }) =>
+      s().projects.listAll(f),
   )
   ipcMain.handle('crm:projects:get', (_e, id: number) => s().projects.get(id))
   ipcMain.handle('crm:projects:create', (_e, clientId: number, name: string) =>

@@ -94,7 +94,9 @@ const api: WindowApi = {
   },
   crm: {
     clients: {
-      list: () => ipcRenderer.invoke('crm:clients:list'),
+      list: (f?: { q?: string; type?: 'company' | 'person' }) =>
+        ipcRenderer.invoke('crm:clients:list', f),
+      get: (id: number) => ipcRenderer.invoke('crm:clients:get', id),
       create: (name: string, type: 'company' | 'person') =>
         ipcRenderer.invoke('crm:clients:create', name, type),
       update: (id: number, c: { name: string; type: 'company' | 'person'; note: string }) =>
@@ -104,6 +106,8 @@ const api: WindowApi = {
     contacts: {
       listByClient: (clientId: number) =>
         ipcRenderer.invoke('crm:contacts:listByClient', clientId),
+      listAll: (f?: { q?: string; clientId?: number }) =>
+        ipcRenderer.invoke('crm:contacts:listAll', f),
       get: (id: number) => ipcRenderer.invoke('crm:contacts:get', id),
       create: (clientId: number, name: string) =>
         ipcRenderer.invoke('crm:contacts:create', clientId, name),
@@ -123,6 +127,8 @@ const api: WindowApi = {
     projects: {
       listByClient: (clientId: number) =>
         ipcRenderer.invoke('crm:projects:listByClient', clientId),
+      listAll: (f?: { q?: string; status?: 'active' | 'done'; clientId?: number }) =>
+        ipcRenderer.invoke('crm:projects:listAll', f),
       get: (id: number) => ipcRenderer.invoke('crm:projects:get', id),
       create: (clientId: number, name: string) =>
         ipcRenderer.invoke('crm:projects:create', clientId, name),

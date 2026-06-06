@@ -94,15 +94,26 @@ export interface CrmProject {
 export interface CrmPayment { id: number; projectId: number; amountCents: number; paidAt: string; note: string }
 export interface CrmFile { id: number; projectId: number; name: string; storedPath: string; size: number; uploadedAt: number }
 
+export interface CrmClientFilter { q?: string; type?: 'company' | 'person' }
+export interface CrmContactFilter { q?: string; clientId?: number }
+export interface CrmProjectFilter { q?: string; status?: 'active' | 'done'; clientId?: number }
+export interface CrmContactWithClient extends CrmContact { clientName: string }
+export interface CrmProjectListItem {
+  id: number; clientId: number; name: string; status: 'active' | 'done'
+  clientName: string; amountCents: number; endDate: string
+}
+
 export interface CrmBridge {
   clients: {
-    list(): Promise<CrmClient[]>
+    list(f?: CrmClientFilter): Promise<CrmClient[]>
+    get(id: number): Promise<CrmClient | null>
     create(name: string, type: 'company' | 'person'): Promise<number>
     update(id: number, c: { name: string; type: 'company' | 'person'; note: string }): Promise<void>
     remove(id: number): Promise<void>
   }
   contacts: {
     listByClient(clientId: number): Promise<CrmContact[]>
+    listAll(f?: CrmContactFilter): Promise<CrmContactWithClient[]>
     get(id: number): Promise<CrmContact | null>
     create(clientId: number, name: string): Promise<number>
     update(id: number, c: Omit<CrmContact, 'id' | 'clientId' | 'createdAt'>): Promise<void>
@@ -110,6 +121,7 @@ export interface CrmBridge {
   }
   projects: {
     listByClient(clientId: number): Promise<CrmProjectLite[]>
+    listAll(f?: CrmProjectFilter): Promise<CrmProjectListItem[]>
     get(id: number): Promise<CrmProject | null>
     create(clientId: number, name: string): Promise<number>
     update(id: number, p: Omit<CrmProject, 'id' | 'clientId' | 'createdAt' | 'updatedAt'>): Promise<void>
