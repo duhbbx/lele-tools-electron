@@ -67,4 +67,15 @@ describe('soft-delete migration', () => {
       expect(cols.some((c) => c.name === 'deleted_at'), table).toBe(true)
     }
   })
+
+  it('老库（无 deleted_at 列）迁移时走 ALTER 补列', () => {
+    const oldDb = new Database(':memory:')
+    oldDb.exec(
+      'CREATE TABLE crm_clients (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, type TEXT NOT NULL DEFAULT \'company\', note TEXT NOT NULL DEFAULT \'\', created_at INTEGER NOT NULL)',
+    )
+    expect(() => migrate(oldDb)).not.toThrow()
+    const cols = oldDb.prepare('PRAGMA table_info(crm_clients)').all() as { name: string }[]
+    expect(cols.some((c) => c.name === 'deleted_at')).toBe(true)
+    oldDb.close()
+  })
 })
