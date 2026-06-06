@@ -20,11 +20,12 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
+    "better-sqlite3-node": "npm:better-sqlite3@^12.10.0",
     "jsdom": "^25.0.0",
     "typescript": "^5.7.3",
     "vitest": "^3.0.5"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["electron", "esbuild", "better-sqlite3"]
+    "onlyBuiltDependencies": ["electron", "esbuild", "better-sqlite3", "better-sqlite3-node"]
   }
 }
