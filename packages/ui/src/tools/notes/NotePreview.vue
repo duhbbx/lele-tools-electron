@@ -7,15 +7,24 @@ const props = defineProps<{ content: string }>()
 const AUDIO_EXT = ['mp3', 'wav', 'm4a', 'ogg', 'flac']
 const VIDEO_EXT = ['mp4', 'webm', 'mov']
 
+const esc = (s: string): string =>
+  s.replace(/[&"'<>]/g, (c) => ({ '&': '&amp;', '"': '&quot;', "'": '&#39;', '<': '&lt;', '>': '&gt;' })[c] as string)
+
+/** 只放行本地附件协议与 http(s)，挡掉 javascript:/data: 等 */
+const safeSrc = (href: string): string =>
+  /^(notes-file:|https?:)/i.test(href) ? esc(href) : ''
+
 // 独立 Marked 实例避免污染全局（AiChatPanel 用的是全局 marked）；
 // image 渲染按扩展名升级为 <audio>/<video>
 const md = new Marked({
   renderer: {
     image({ href, text }: Tokens.Image): string {
+      const src = safeSrc(href)
+      if (!src) return esc(text)
       const ext = (href.split('.').pop() ?? '').toLowerCase()
-      if (AUDIO_EXT.includes(ext)) return `<audio controls src="${href}"></audio>`
-      if (VIDEO_EXT.includes(ext)) return `<video controls src="${href}"></video>`
-      return `<img src="${href}" alt="${text}">`
+      if (AUDIO_EXT.includes(ext)) return `<audio controls src="${src}"></audio>`
+      if (VIDEO_EXT.includes(ext)) return `<video controls src="${src}"></video>`
+      return `<img src="${src}" alt="${esc(text)}">`
     },
   },
 })
@@ -28,8 +37,12 @@ function onClick(e: MouseEvent): void {
   e.preventDefault()
   const href = a.getAttribute('href') ?? ''
   if (href.startsWith('notes-file://')) {
-    const id = Number(new URL(href).hostname)
-    if (id) void window.api?.notes?.files?.open?.(id)
+    try {
+      const id = Number(new URL(href).hostname)
+      if (id) void window.api?.notes?.files?.open?.(id)
+    } catch {
+      // 畸形 notes-file URL，忽略
+    }
   } else if (/^https?:/.test(href)) {
     // 经主进程 setWindowOpenHandler 转交系统浏览器
     window.open(href)
