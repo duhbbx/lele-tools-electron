@@ -57,6 +57,16 @@ export interface CrmFileRow {
   uploadedAt: number
 }
 
+export interface CrmProjectListRow {
+  id: number
+  clientId: number
+  name: string
+  status: 'active' | 'done'
+  clientName: string
+  amountCents: number
+  endDate: string
+}
+
 function mapClient(r: Record<string, unknown>): CrmClientRow {
   return {
     id: r.id as number,
@@ -127,10 +137,20 @@ function mapFile(r: Record<string, unknown>): CrmFileRow {
 export function makeCrmStore(db: Database.Database) {
   return {
     clients: {
-      list(): CrmClientRow[] {
+      list(f?: { q?: string; type?: 'company' | 'person' }): CrmClientRow[] {
+        const conds = ['deleted_at IS NULL']
+        const params: unknown[] = []
+        if (f?.q) {
+          conds.push('name LIKE ?')
+          params.push(`%${f.q}%`)
+        }
+        if (f?.type) {
+          conds.push('type = ?')
+          params.push(f.type)
+        }
         const rows = db
-          .prepare('SELECT * FROM crm_clients WHERE deleted_at IS NULL ORDER BY name')
-          .all() as Record<string, unknown>[]
+          .prepare(`SELECT * FROM crm_clients WHERE ${conds.join(' AND ')} ORDER BY name`)
+          .all(...params) as Record<string, unknown>[]
         return rows.map(mapClient)
       },
       get(id: number): CrmClientRow | null {
@@ -178,6 +198,26 @@ export function makeCrmStore(db: Database.Database) {
           .all(clientId) as Record<string, unknown>[]
         return rows.map(mapContact)
       },
+      listAll(f?: { q?: string; clientId?: number }): (CrmContactRow & { clientName: string })[] {
+        const conds = ['c.deleted_at IS NULL']
+        const params: unknown[] = []
+        if (f?.q) {
+          conds.push('c.name LIKE ?')
+          params.push(`%${f.q}%`)
+        }
+        if (f?.clientId) {
+          conds.push('c.client_id = ?')
+          params.push(f.clientId)
+        }
+        const rows = db
+          .prepare(
+            `SELECT c.*, cl.name AS client_name FROM crm_contacts c
+             JOIN crm_clients cl ON cl.id = c.client_id
+             WHERE ${conds.join(' AND ')} ORDER BY c.name`,
+          )
+          .all(...params) as Record<string, unknown>[]
+        return rows.map((r) => ({ ...mapContact(r), clientName: r.client_name as string }))
+      },
       get(id: number): CrmContactRow | null {
         const row = db
           .prepare('SELECT * FROM crm_contacts WHERE id = ? AND deleted_at IS NULL')
@@ -213,6 +253,44 @@ export function makeCrmStore(db: Database.Database) {
           )
           .all(clientId) as { id: number; name: string; status: string }[]
         return rows
+      },
+      listAll(f?: {
+        q?: string
+        status?: 'active' | 'done'
+        clientId?: number
+      }): CrmProjectListRow[] {
+        const conds = ['p.deleted_at IS NULL']
+        const params: unknown[] = []
+        if (f?.q) {
+          conds.push('p.name LIKE ?')
+          params.push(`%${f.q}%`)
+        }
+        if (f?.status) {
+          conds.push('p.status = ?')
+          params.push(f.status)
+        }
+        if (f?.clientId) {
+          conds.push('p.client_id = ?')
+          params.push(f.clientId)
+        }
+        const rows = db
+          .prepare(
+            `SELECT p.id, p.client_id, p.name, p.status, p.amount_cents, p.end_date,
+                    cl.name AS client_name
+             FROM crm_projects p
+             JOIN crm_clients cl ON cl.id = p.client_id
+             WHERE ${conds.join(' AND ')} ORDER BY p.name`,
+          )
+          .all(...params) as Record<string, unknown>[]
+        return rows.map((r) => ({
+          id: r.id as number,
+          clientId: r.client_id as number,
+          name: r.name as string,
+          status: r.status as 'active' | 'done',
+          clientName: r.client_name as string,
+          amountCents: r.amount_cents as number,
+          endDate: r.end_date as string,
+        }))
       },
       get(id: number): CrmProjectRow | null {
         const row = db

@@ -105,3 +105,55 @@ describe('soft-delete migration', () => {
     oldDb.close()
   })
 })
+
+describe('filtered queries', () => {
+  let cidA: number
+  let cidB: number
+  beforeEach(() => {
+    cidA = store.clients.create({ name: '阿里云', type: 'company', note: '' })
+    cidB = store.clients.create({ name: '张三', type: 'person', note: '' })
+    store.contacts.create(cidA, '王经理')
+    store.contacts.create(cidB, '张三本人')
+    const p1 = store.projects.create(cidA, '官网改版')
+    store.projects.create(cidB, '小程序')
+    store.projects.update(p1, {
+      name: '官网改版', status: 'done', description: '', serverAddr: '', domain: '',
+      adminUrl: '', adminUser: '', adminPass: '', wxAppId: '', wxAppSecret: '',
+      wxPayParams: '[]', amountCents: 8000_00, endDate: '2026-09-30',
+    })
+  })
+
+  it('clients.list 支持名称关键字与类型筛选', () => {
+    expect(store.clients.list({ q: '阿里' })).toHaveLength(1)
+    expect(store.clients.list({ type: 'person' }).map((c) => c.name)).toEqual(['张三'])
+    expect(store.clients.list({ q: '阿里', type: 'person' })).toHaveLength(0)
+    expect(store.clients.list()).toHaveLength(2)
+  })
+
+  it('contacts.listAll 平铺所有干系人并带客户名，支持关键字与客户筛选', () => {
+    const all = store.contacts.listAll()
+    expect(all).toHaveLength(2)
+    expect(all.find((c) => c.name === '王经理')?.clientName).toBe('阿里云')
+    expect(store.contacts.listAll({ q: '王' })).toHaveLength(1)
+    expect(store.contacts.listAll({ clientId: cidB }).map((c) => c.name)).toEqual(['张三本人'])
+  })
+
+  it('projects.listAll 平铺所有项目并带客户名/金额/截止日期，支持状态与客户筛选', () => {
+    const all = store.projects.listAll()
+    expect(all).toHaveLength(2)
+    const p = all.find((x) => x.name === '官网改版')
+    expect(p?.clientName).toBe('阿里云')
+    expect(p?.amountCents).toBe(8000_00)
+    expect(p?.endDate).toBe('2026-09-30')
+    expect(store.projects.listAll({ status: 'done' })).toHaveLength(1)
+    expect(store.projects.listAll({ clientId: cidB, q: '小' })).toHaveLength(1)
+    expect(store.projects.listAll({ clientId: cidB, status: 'done' })).toHaveLength(0)
+  })
+
+  it('软删除的记录不出现在筛选查询里', () => {
+    store.clients.remove(cidA)
+    expect(store.clients.list()).toHaveLength(1)
+    expect(store.contacts.listAll()).toHaveLength(1)
+    expect(store.projects.listAll()).toHaveLength(1)
+  })
+})
