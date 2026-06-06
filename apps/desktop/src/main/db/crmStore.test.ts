@@ -18,7 +18,7 @@ describe('crm clients', () => {
   it('creates, lists, updates, deletes clients', () => {
     const id = store.clients.create({ name: '某公司', type: 'company', note: '' })
     expect(store.clients.list()).toHaveLength(1)
-    store.clients.update(id, { name: '改名公司', type: 'company', note: 'x' })
+    store.clients.update(id, { name: '改名公司', type: 'company', note: 'x', phone: '', email: '', legalPerson: '', legalPersonPhone: '', uscc: '', regAddress: '', establishedDate: '' })
     expect(store.clients.get(id)?.name).toBe('改名公司')
     store.clients.remove(id)
     expect(store.clients.list()).toHaveLength(0)
@@ -39,8 +39,8 @@ describe('soft delete', () => {
 
   it('删除客户级联给其下干系人/项目打标；payments/files 数据保留', () => {
     const cid = store.clients.create({ name: 'c', type: 'person', note: '' })
-    const pid = store.projects.create(cid, '项目A')
-    const ctid = store.contacts.create(cid, '张总')
+    const pid = store.projects.create(cid, { name: '项目A' })
+    const ctid = store.contacts.create(cid, { name: '张总' })
     store.payments.add(pid, { amountCents: 100_00, paidAt: '2026-06-01', note: '' })
     store.files.add(pid, { name: '合同.pdf', storedPath: 'crm-files/1/合同.pdf', size: 10 })
     store.clients.remove(cid)
@@ -55,8 +55,8 @@ describe('soft delete', () => {
 
   it('单删干系人/项目同样仅隐藏', () => {
     const cid = store.clients.create({ name: 'c', type: 'company', note: '' })
-    const ctid = store.contacts.create(cid, '张总')
-    const pid = store.projects.create(cid, 'P')
+    const ctid = store.contacts.create(cid, { name: '张总' })
+    const pid = store.projects.create(cid, { name: 'P' })
     store.contacts.remove(ctid)
     store.projects.remove(pid)
     expect(store.contacts.get(ctid)).toBeNull()
@@ -69,7 +69,7 @@ describe('soft delete', () => {
 describe('project update + payments math source data', () => {
   it('updates full project fields and lists payments', () => {
     const cid = store.clients.create({ name: 'c', type: 'company', note: '' })
-    const pid = store.projects.create(cid, 'P')
+    const pid = store.projects.create(cid, { name: 'P' })
     store.projects.update(pid, {
       name: 'P1', status: 'active', description: 'desc', serverAddr: '1.2.3.4',
       domain: 'p.example.com', adminUrl: 'https://p.example.com/admin', adminUser: 'root',
@@ -112,10 +112,10 @@ describe('filtered queries', () => {
   beforeEach(() => {
     cidA = store.clients.create({ name: '阿里云', type: 'company', note: '' })
     cidB = store.clients.create({ name: '张三', type: 'person', note: '' })
-    store.contacts.create(cidA, '王经理')
-    store.contacts.create(cidB, '张三本人')
-    const p1 = store.projects.create(cidA, '官网改版')
-    store.projects.create(cidB, '小程序')
+    store.contacts.create(cidA, { name: '王经理' })
+    store.contacts.create(cidB, { name: '张三本人' })
+    const p1 = store.projects.create(cidA, { name: '官网改版' })
+    store.projects.create(cidB, { name: '小程序' })
     store.projects.update(p1, {
       name: '官网改版', status: 'done', description: '', serverAddr: '', domain: '',
       adminUrl: '', adminUser: '', adminPass: '', wxAppId: '', wxAppSecret: '',
@@ -159,10 +159,65 @@ describe('filtered queries', () => {
 
   it('对已软删客户新建的子记录不会从 listAll 泄漏', () => {
     store.clients.remove(cidA)
-    store.contacts.create(cidA, '孤儿联系人')
-    store.projects.create(cidA, '孤儿项目')
+    store.contacts.create(cidA, { name: '孤儿联系人' })
+    store.projects.create(cidA, { name: '孤儿项目' })
     expect(store.contacts.listAll()).toHaveLength(1)
     expect(store.projects.listAll()).toHaveLength(1)
+  })
+})
+
+describe('extended entity fields', () => {
+  it('clients 全字段 create/update 往返', () => {
+    const id = store.clients.create({
+      name: '某科技公司', type: 'company', email: 'biz@example.com',
+      legalPerson: '张法人', legalPersonPhone: '13800000000',
+      uscc: '91110000XXXXXXXXXX', regAddress: '北京市朝阳区', establishedDate: '2020-01-01',
+    })
+    const c = store.clients.get(id)
+    expect(c?.legalPerson).toBe('张法人')
+    expect(c?.uscc).toBe('91110000XXXXXXXXXX')
+    expect(c?.email).toBe('biz@example.com')
+    expect(c?.phone).toBe('')
+    store.clients.update(id, {
+      name: '某科技公司', type: 'person', note: 'n', phone: '13900000000', email: 'p@example.com',
+      legalPerson: '张法人', legalPersonPhone: '13800000000',
+      uscc: '91110000XXXXXXXXXX', regAddress: '北京市朝阳区', establishedDate: '2020-01-01',
+    })
+    const c2 = store.clients.get(id)
+    expect(c2?.phone).toBe('13900000000')
+    expect(c2?.type).toBe('person')
+    // 类型切换后公司字段数据保留
+    expect(c2?.legalPerson).toBe('张法人')
+  })
+
+  it('contacts 全字段 create 含性别，update 可改性别', () => {
+    const cid = store.clients.create({ name: 'c', type: 'person' })
+    const id = store.contacts.create(cid, {
+      name: '王经理', role: '经理', phone: '13700000000', wechat: 'wx_wang', sex: 'female', email: 'w@x.com',
+    })
+    const ct = store.contacts.get(id)
+    expect(ct?.sex).toBe('female')
+    expect(ct?.wechat).toBe('wx_wang')
+    expect(ct?.note).toBe('')
+    store.contacts.update(id, {
+      name: '王经理', role: '经理', phone: '13700000000', wechat: 'wx_wang', email: 'w@x.com', sex: 'male', note: '',
+    })
+    expect(store.contacts.get(id)?.sex).toBe('male')
+  })
+
+  it('projects.create 带基本字段', () => {
+    const cid = store.clients.create({ name: 'c', type: 'company' })
+    const pid = store.projects.create(cid, {
+      name: '官网', status: 'done', description: '改版', amountCents: 8000_00, endDate: '2026-12-31',
+    })
+    const p = store.projects.get(pid)
+    expect(p?.status).toBe('done')
+    expect(p?.amountCents).toBe(8000_00)
+    expect(p?.endDate).toBe('2026-12-31')
+    expect(p?.description).toBe('改版')
+    // 缺省路径
+    const pid2 = store.projects.create(cid, { name: 'P2' })
+    expect(store.projects.get(pid2)?.status).toBe('active')
   })
 })
 

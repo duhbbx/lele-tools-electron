@@ -5,6 +5,13 @@ export interface CrmClientRow {
   name: string
   type: 'company' | 'person'
   note: string
+  phone: string
+  email: string
+  legalPerson: string
+  legalPersonPhone: string
+  uscc: string
+  regAddress: string
+  establishedDate: string
   createdAt: number
 }
 
@@ -16,6 +23,7 @@ export interface CrmContactRow {
   phone: string
   wechat: string
   email: string
+  sex: '' | 'male' | 'female'
   note: string
   createdAt: number
 }
@@ -73,6 +81,13 @@ function mapClient(r: Record<string, unknown>): CrmClientRow {
     name: r.name as string,
     type: r.type as 'company' | 'person',
     note: r.note as string,
+    phone: r.phone as string,
+    email: r.email as string,
+    legalPerson: r.legal_person as string,
+    legalPersonPhone: r.legal_person_phone as string,
+    uscc: r.uscc as string,
+    regAddress: r.reg_address as string,
+    establishedDate: r.established_date as string,
     createdAt: r.created_at as number,
   }
 }
@@ -86,6 +101,7 @@ function mapContact(r: Record<string, unknown>): CrmContactRow {
     phone: r.phone as string,
     wechat: r.wechat as string,
     email: r.email as string,
+    sex: r.sex as '' | 'male' | 'female',
     note: r.note as string,
     createdAt: r.created_at as number,
   }
@@ -159,19 +175,41 @@ export function makeCrmStore(db: Database.Database) {
           .get(id) as Record<string, unknown> | undefined
         return row ? mapClient(row) : null
       },
-      create(c: { name: string; type: 'company' | 'person'; note: string }): number {
+      create(c: {
+        name: string
+        type: 'company' | 'person'
+        note?: string
+        phone?: string
+        email?: string
+        legalPerson?: string
+        legalPersonPhone?: string
+        uscc?: string
+        regAddress?: string
+        establishedDate?: string
+      }): number {
         const result = db
           .prepare(
-            'INSERT INTO crm_clients(name, type, note, created_at) VALUES(?, ?, ?, ?)',
+            `INSERT INTO crm_clients(
+              name, type, note, phone, email, legal_person, legal_person_phone,
+              uscc, reg_address, established_date, created_at
+            ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
-          .run(c.name, c.type, c.note, Date.now())
+          .run(
+            c.name, c.type, c.note ?? '', c.phone ?? '', c.email ?? '',
+            c.legalPerson ?? '', c.legalPersonPhone ?? '', c.uscc ?? '',
+            c.regAddress ?? '', c.establishedDate ?? '', Date.now(),
+          )
         return result.lastInsertRowid as number
       },
-      update(id: number, c: { name: string; type: 'company' | 'person'; note: string }): void {
-        db.prepare('UPDATE crm_clients SET name = ?, type = ?, note = ? WHERE id = ?').run(
-          c.name,
-          c.type,
-          c.note,
+      update(id: number, c: Omit<CrmClientRow, 'id' | 'createdAt'>): void {
+        db.prepare(
+          `UPDATE crm_clients SET
+            name = ?, type = ?, note = ?, phone = ?, email = ?,
+            legal_person = ?, legal_person_phone = ?, uscc = ?, reg_address = ?, established_date = ?
+          WHERE id = ?`,
+        ).run(
+          c.name, c.type, c.note, c.phone, c.email,
+          c.legalPerson, c.legalPersonPhone, c.uscc, c.regAddress, c.establishedDate,
           id,
         )
       },
@@ -224,12 +262,26 @@ export function makeCrmStore(db: Database.Database) {
           .get(id) as Record<string, unknown> | undefined
         return row ? mapContact(row) : null
       },
-      create(clientId: number, name: string): number {
+      create(
+        clientId: number,
+        c: {
+          name: string
+          role?: string
+          phone?: string
+          wechat?: string
+          email?: string
+          sex?: '' | 'male' | 'female'
+          note?: string
+        },
+      ): number {
         const result = db
           .prepare(
-            'INSERT INTO crm_contacts(client_id, name, role, phone, wechat, email, note, created_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?)',
+            'INSERT INTO crm_contacts(client_id, name, role, phone, wechat, email, sex, note, created_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)',
           )
-          .run(clientId, name, '', '', '', '', '', Date.now())
+          .run(
+            clientId, c.name, c.role ?? '', c.phone ?? '', c.wechat ?? '',
+            c.email ?? '', c.sex ?? '', c.note ?? '', Date.now(),
+          )
         return result.lastInsertRowid as number
       },
       update(
@@ -237,8 +289,8 @@ export function makeCrmStore(db: Database.Database) {
         c: Omit<CrmContactRow, 'id' | 'clientId' | 'createdAt'>,
       ): void {
         db.prepare(
-          'UPDATE crm_contacts SET name = ?, role = ?, phone = ?, wechat = ?, email = ?, note = ? WHERE id = ?',
-        ).run(c.name, c.role, c.phone, c.wechat, c.email, c.note, id)
+          'UPDATE crm_contacts SET name = ?, role = ?, phone = ?, wechat = ?, email = ?, sex = ?, note = ? WHERE id = ?',
+        ).run(c.name, c.role, c.phone, c.wechat, c.email, c.sex, c.note, id)
       },
       remove(id: number): void {
         db.prepare('UPDATE crm_contacts SET deleted_at = ? WHERE id = ?').run(Date.now(), id)
@@ -298,7 +350,16 @@ export function makeCrmStore(db: Database.Database) {
           .get(id) as Record<string, unknown> | undefined
         return row ? mapProject(row) : null
       },
-      create(clientId: number, name: string): number {
+      create(
+        clientId: number,
+        p: {
+          name: string
+          status?: 'active' | 'done'
+          description?: string
+          amountCents?: number
+          endDate?: string
+        },
+      ): number {
         const now = Date.now()
         const result = db
           .prepare(
@@ -306,9 +367,12 @@ export function makeCrmStore(db: Database.Database) {
               client_id, name, status, description, server_addr, domain, admin_url,
               admin_user, admin_pass, wx_app_id, wx_app_secret, wx_pay_params,
               amount_cents, end_date, created_at, updated_at
-            ) VALUES(?, ?, 'active', '', '', '', '', '', '', '', '', '[]', 0, ?, ?, ?)`,
+            ) VALUES(?, ?, ?, ?, '', '', '', '', '', '', '', '[]', ?, ?, ?, ?)`,
           )
-          .run(clientId, name, '', now, now)
+          .run(
+            clientId, p.name, p.status ?? 'active', p.description ?? '',
+            p.amountCents ?? 0, p.endDate ?? '', now, now,
+          )
         return result.lastInsertRowid as number
       },
       update(
