@@ -151,6 +151,16 @@ export function makeNotesStore(db: Database.Database) {
       remove(id: number): void {
         db.prepare('DELETE FROM notes WHERE id = ?').run(id)
       },
+      /** 标题/正文 LIKE 搜索；通配符转义 */
+      search(query: string): NoteListItemRow[] {
+        const like = `%${query.replace(/[\\%_]/g, (c) => `\\${c}`)}%`
+        const rows = db
+          .prepare(
+            "SELECT id, folder_id, title, updated_at FROM notes WHERE title LIKE ? ESCAPE '\\' OR content LIKE ? ESCAPE '\\' ORDER BY updated_at DESC",
+          )
+          .all(like, like) as Record<string, unknown>[]
+        return rows.map(mapNoteListItem)
+      },
     },
 
     files: {

@@ -80,3 +80,18 @@ describe('files + cascade', () => {
     expect(ids).not.toContain(outside)
   })
 })
+
+describe('notes search', () => {
+  it('matches title and content, escapes LIKE wildcards', () => {
+    const a = store.notes.create(null)
+    store.notes.update(a, { title: '会议纪要', content: '# 会议纪要\n讨论了进度' })
+    const b = store.notes.create(null)
+    store.notes.update(b, { title: '购物清单', content: '牛奶 100% 纯的' })
+
+    expect(store.notes.search('会议').map((n) => n.id)).toEqual([a])
+    expect(store.notes.search('进度').map((n) => n.id)).toEqual([a])
+    expect(store.notes.search('100%').map((n) => n.id)).toEqual([b])
+    expect(store.notes.search('%').map((n) => n.id)).toEqual([b]) // 字面 % 只在 b
+    expect(store.notes.search('不存在的词')).toHaveLength(0)
+  })
+})

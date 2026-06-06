@@ -73,6 +73,7 @@ const api: WindowApi = {
       remove: (id: number) => ipcRenderer.invoke('notes:folders:remove', id),
     },
     list: () => ipcRenderer.invoke('notes:list'),
+    search: (query: string) => ipcRenderer.invoke('notes:search', query),
     get: (id: number) => ipcRenderer.invoke('notes:get', id),
     create: (folderId: number | null) => ipcRenderer.invoke('notes:create', folderId),
     update: (id: number, content: string, title: string) =>

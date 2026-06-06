@@ -93,6 +93,7 @@ export function registerNotesIpc(): void {
 
   // notes
   ipcMain.handle('notes:list', () => s().notes.list())
+  ipcMain.handle('notes:search', (_e, query: string) => s().notes.search(query))
   ipcMain.handle('notes:get', (_e, id: number) => s().notes.get(id))
   ipcMain.handle('notes:create', (_e, folderId: number | null) => s().notes.create(folderId))
   ipcMain.handle('notes:update', (_e, id: number, content: string, title: string) =>

@@ -145,6 +145,8 @@ export interface NotesBridge {
   }
   /** 全量笔记列表（轻量字段，树渲染用） */
   list(): Promise<NoteListItem[]>
+  /** 标题+全文 LIKE 搜索 */
+  search(query: string): Promise<NoteListItem[]>
   get(id: number): Promise<Note | null>
   /** 新建空笔记，返回 id */
   create(folderId: number | null): Promise<number>
