@@ -4,10 +4,14 @@ import { closeDb } from './db/sqlite'
 import { registerAiIpc } from './ipc/ai'
 import { registerCrmIpc } from './ipc/crm'
 import { registerGithubIpc } from './ipc/github'
+import { registerNotesIpc, registerNotesProtocol, registerNotesScheme } from './ipc/notes'
 import { registerStoreIpc } from './ipc/store'
 import { setupMenu } from './menu'
 
 const isDev = !app.isPackaged
+
+// 自定义协议特权声明必须在 app ready 前
+registerNotesScheme()
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -42,6 +46,8 @@ app.whenReady().then(() => {
   registerAiIpc()
   registerGithubIpc()
   registerCrmIpc()
+  registerNotesIpc()
+  registerNotesProtocol()
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

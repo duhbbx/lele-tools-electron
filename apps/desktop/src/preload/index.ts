@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { WindowApi } from '@lele/shared-types'
 
 const api: WindowApi = {
@@ -61,6 +61,34 @@ const api: WindowApi = {
     listOwnRepos: () => ipcRenderer.invoke('github:list-repos'),
     createIssue: (fullName: string, title: string, body: string) =>
       ipcRenderer.invoke('github:create-issue', fullName, title, body),
+  },
+  notes: {
+    folders: {
+      list: () => ipcRenderer.invoke('notes:folders:list'),
+      create: (parentId: number | null, name: string) =>
+        ipcRenderer.invoke('notes:folders:create', parentId, name),
+      rename: (id: number, name: string) => ipcRenderer.invoke('notes:folders:rename', id, name),
+      move: (id: number, parentId: number | null) =>
+        ipcRenderer.invoke('notes:folders:move', id, parentId),
+      remove: (id: number) => ipcRenderer.invoke('notes:folders:remove', id),
+    },
+    list: () => ipcRenderer.invoke('notes:list'),
+    get: (id: number) => ipcRenderer.invoke('notes:get', id),
+    create: (folderId: number | null) => ipcRenderer.invoke('notes:create', folderId),
+    update: (id: number, content: string, title: string) =>
+      ipcRenderer.invoke('notes:update', id, content, title),
+    move: (id: number, folderId: number | null) => ipcRenderer.invoke('notes:move', id, folderId),
+    remove: (id: number) => ipcRenderer.invoke('notes:remove', id),
+    files: {
+      pick: (noteId: number, kind: 'image' | 'file') =>
+        ipcRenderer.invoke('notes:files:pick', noteId, kind),
+      paste: (noteId: number, name: string, mime: string, data: Uint8Array) =>
+        ipcRenderer.invoke('notes:files:paste', noteId, name, mime, data),
+      importPath: (noteId: number, path: string) =>
+        ipcRenderer.invoke('notes:files:importPath', noteId, path),
+      open: (id: number) => ipcRenderer.invoke('notes:files:open', id),
+    },
+    fileToPath: (file: File) => webUtils.getPathForFile(file),
   },
   crm: {
     clients: {

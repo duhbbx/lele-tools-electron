@@ -129,6 +129,44 @@ export interface CrmBridge {
   }
 }
 
+export interface NoteFolder { id: number; parentId: number | null; name: string; createdAt: number }
+export interface NoteListItem { id: number; folderId: number | null; title: string; updatedAt: number }
+export interface Note { id: number; folderId: number | null; title: string; content: string; createdAt: number; updatedAt: number }
+export interface NoteFile { id: number; noteId: number; name: string; storedPath: string; mime: string; size: number; createdAt: number }
+
+export interface NotesBridge {
+  folders: {
+    list(): Promise<NoteFolder[]>
+    create(parentId: number | null, name: string): Promise<number>
+    rename(id: number, name: string): Promise<void>
+    move(id: number, parentId: number | null): Promise<void>
+    /** 级联删子文件夹与笔记，并清理这些笔记的附件目录 */
+    remove(id: number): Promise<void>
+  }
+  /** 全量笔记列表（轻量字段，树渲染用） */
+  list(): Promise<NoteListItem[]>
+  get(id: number): Promise<Note | null>
+  /** 新建空笔记，返回 id */
+  create(folderId: number | null): Promise<number>
+  /** title 由渲染层从 content 提取后传入 */
+  update(id: number, content: string, title: string): Promise<void>
+  move(id: number, folderId: number | null): Promise<void>
+  /** 删笔记并清理 userData/notes-files/<id>/ */
+  remove(id: number): Promise<void>
+  files: {
+    /** 弹系统文件选择框（kind=image 时只给图片过滤器）→ 拷贝到 userData/notes-files/<noteId>/ → 入库；取消返回 null */
+    pick(noteId: number, kind: 'image' | 'file'): Promise<NoteFile | null>
+    /** 剪贴板/拖拽来的二进制数据落盘入库 */
+    paste(noteId: number, name: string, mime: string, data: Uint8Array): Promise<NoteFile | null>
+    /** 按本地路径拷贝入库（拖拽文件用） */
+    importPath(noteId: number, path: string): Promise<NoteFile | null>
+    /** 系统默认程序打开附件 */
+    open(id: number): Promise<void>
+  }
+  /** 拖拽的 File 对象 → 本地绝对路径（webUtils.getPathForFile，同步） */
+  fileToPath(file: File): string
+}
+
 export interface WindowApi {
   ai: AiBridge
   store: StoreBridge
@@ -137,4 +175,5 @@ export interface WindowApi {
   menu: MenuBridge
   github: GithubBridge
   crm: CrmBridge
+  notes: NotesBridge
 }
