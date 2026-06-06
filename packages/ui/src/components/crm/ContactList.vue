@@ -83,7 +83,7 @@ const { confirmingId, trigger } = useConfirmDelete(async (id) => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="r in rows" :key="r.id">
+          <tr v-for="r in rows" :key="r.id" @dblclick="emit('open', r.id, r.name)">
             <td>{{ r.name }}</td>
             <td>{{ r.clientName }}</td>
             <td>{{ r.role }}</td>

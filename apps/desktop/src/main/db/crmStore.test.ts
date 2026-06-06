@@ -75,11 +75,13 @@ describe('project update + payments math source data', () => {
       domain: 'p.example.com', adminUrl: 'https://p.example.com/admin', adminUser: 'root',
       adminPass: 'pw', wxAppId: 'wx1', wxAppSecret: 's', wxPayParams: '[{"k":"mchId","v":"123"}]',
       amountCents: 5000_00, shareCents: 1500_00, endDate: '2026-12-31',
+      reqCurrent: '做官网', reqAdded: '加小程序', reqFuture: '二期 App',
     })
     const p = store.projects.get(pid)
     expect(p?.amountCents).toBe(5000_00)
     expect(p?.shareCents).toBe(1500_00)
     expect(p?.domain).toBe('p.example.com')
+    expect(p?.reqAdded).toBe('加小程序')
     store.payments.add(pid, { amountCents: 1000_00, paidAt: '2026-06-01', method: 'bank', note: '首款' })
     store.payments.add(pid, { amountCents: 2000_00, paidAt: '2026-07-01', method: 'alipay', note: '' })
     const pays = store.payments.listByProject(pid)
@@ -123,6 +125,7 @@ describe('filtered queries', () => {
       name: '官网改版', status: 'done', description: '', serverAddr: '', domain: '',
       adminUrl: '', adminUser: '', adminPass: '', wxAppId: '', wxAppSecret: '',
       wxPayParams: '[]', amountCents: 8000_00, shareCents: 2000_00, endDate: '2026-09-30',
+      reqCurrent: '', reqAdded: '', reqFuture: '',
     })
   })
 
@@ -235,6 +238,32 @@ describe('extended entity fields', () => {
     const pid2 = store.projects.create(cid, { name: 'P2' })
     expect(store.projects.get(pid2)?.status).toBe('active')
     expect(store.projects.get(pid2)?.shareCents).toBe(0)
+  })
+})
+
+describe('docs + idcard', () => {
+  it('docs 增删查 + 名称过滤', () => {
+    const id1 = store.docs.add({ name: '合同模板.docx', storedPath: 'crm-files/docs/合同模板.docx', size: 100 })
+    store.docs.add({ name: '公司介绍.pdf', storedPath: 'crm-files/docs/公司介绍.pdf', size: 200 })
+    expect(store.docs.list()).toHaveLength(2)
+    expect(store.docs.list('合同').map((d) => d.id)).toEqual([id1])
+    expect(store.docs.get(id1)?.name).toBe('合同模板.docx')
+    store.docs.remove(id1)
+    expect(store.docs.list()).toHaveLength(1)
+  })
+
+  it('身份证正反面路径单独设置/清空，不受整体 update 影响', () => {
+    const id = store.clients.create({ name: 'c', type: 'company' })
+    store.clients.setIdCard(id, 'front', 'crm-files/clients/1/idcard-front.png')
+    expect(store.clients.get(id)?.idCardFront).toBe('crm-files/clients/1/idcard-front.png')
+    expect(store.clients.get(id)?.idCardBack).toBe('')
+    store.clients.update(id, {
+      name: 'c', type: 'company', note: '', phone: '', email: '', legalPerson: '',
+      legalPersonPhone: '', uscc: '', regAddress: '', establishedDate: '', source: '',
+    })
+    expect(store.clients.get(id)?.idCardFront).toBe('crm-files/clients/1/idcard-front.png')
+    store.clients.setIdCard(id, 'front', '')
+    expect(store.clients.get(id)?.idCardFront).toBe('')
   })
 })
 

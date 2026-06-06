@@ -1,6 +1,7 @@
 import { copyFileSync, existsSync, mkdirSync, rmSync, statSync } from 'node:fs'
-import { basename, join, relative } from 'node:path'
-import { app, dialog, ipcMain, shell } from 'electron'
+import { basename, extname, join, relative, resolve, sep } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import { app, dialog, ipcMain, net, protocol, shell } from 'electron'
 import { type CrmClientSource, type CrmPaymentMethod, makeCrmStore } from '../db/crmStore'
 import { getDb } from '../db/sqlite'
 
@@ -8,6 +9,44 @@ let _store: ReturnType<typeof makeCrmStore> | null = null
 function s(): ReturnType<typeof makeCrmStore> {
   if (_store === null) _store = makeCrmStore(getDb())
   return _store
+}
+
+function crmDir(): string {
+  return join(app.getPath('userData'), 'crm-files')
+}
+
+/** 把本地文件拷进 crm-files/<sub>/，同名加时间戳前缀；返回 userData 相对路径与大小 */
+function copyIntoCrmDir(src: string, sub: string): { storedPath: string; size: number } {
+  const dir = join(crmDir(), sub)
+  mkdirSync(dir, { recursive: true })
+  let destName = basename(src)
+  if (existsSync(join(dir, destName))) destName = `${Date.now()}-${destName}`
+  const dest = join(dir, destName)
+  copyFileSync(src, dest)
+  return { storedPath: relative(app.getPath('userData'), dest), size: statSync(dest).size }
+}
+
+const IMAGE_FILTER = [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }]
+
+/** app ready 之后调用：crm-file://idcard/<clientId>/<front|back> → 身份证图片
+ *  （scheme 特权声明集中在 ../schemes.ts 的 registerAppSchemes） */
+export function registerCrmProtocol(): void {
+  protocol.handle('crm-file', (request) => {
+    const url = new URL(request.url)
+    if (url.hostname !== 'idcard') return new Response('not found', { status: 404 })
+    const [idStr, side] = url.pathname.split('/').filter(Boolean)
+    const id = Number(idStr)
+    if (!Number.isInteger(id) || id <= 0 || (side !== 'front' && side !== 'back')) {
+      return new Response('bad request', { status: 400 })
+    }
+    const client = s().clients.get(id)
+    const storedPath = side === 'front' ? client?.idCardFront : client?.idCardBack
+    if (!storedPath) return new Response('not found', { status: 404 })
+    const abs = resolve(app.getPath('userData'), storedPath)
+    // 防路径穿越：必须落在 crm-files 内
+    if (!abs.startsWith(crmDir() + sep)) return new Response('forbidden', { status: 403 })
+    return net.fetch(pathToFileURL(abs).toString())
+  })
 }
 
 export function registerCrmIpc(): void {
@@ -40,6 +79,34 @@ export function registerCrmIpc(): void {
     ) => s().clients.update(id, c),
   )
   ipcMain.handle('crm:clients:remove', (_e, id: number) => s().clients.remove(id))
+
+  // 法人身份证正/反面：选图 → 拷入 crm-files/clients/<id>/ → 更新列（旧图同步删除）
+  ipcMain.handle('crm:clients:pickIdCard', async (_e, id: number, side: 'front' | 'back') => {
+    const client = s().clients.get(id)
+    if (!client) return null
+    const result = await dialog.showOpenDialog({ properties: ['openFile'], filters: IMAGE_FILTER })
+    if (result.canceled || result.filePaths.length === 0) return null
+    const src = result.filePaths[0]
+    const ext = extname(src).toLowerCase() || '.png'
+    // 固定文件名（idcard-front.<ext>），换图直接覆盖语义：先删旧文件再拷
+    const old = side === 'front' ? client.idCardFront : client.idCardBack
+    if (old) rmSync(join(app.getPath('userData'), old), { force: true })
+    const dir = join(crmDir(), 'clients', String(id))
+    mkdirSync(dir, { recursive: true })
+    const dest = join(dir, `idcard-${side}${ext}`)
+    copyFileSync(src, dest)
+    const storedPath = relative(app.getPath('userData'), dest)
+    s().clients.setIdCard(id, side, storedPath)
+    return storedPath
+  })
+
+  ipcMain.handle('crm:clients:removeIdCard', (_e, id: number, side: 'front' | 'back') => {
+    const client = s().clients.get(id)
+    if (!client) return
+    const old = side === 'front' ? client.idCardFront : client.idCardBack
+    if (old) rmSync(join(app.getPath('userData'), old), { force: true })
+    s().clients.setIdCard(id, side, '')
+  })
 
   // contacts
   ipcMain.handle('crm:contacts:listByClient', (_e, clientId: number) =>
@@ -108,6 +175,9 @@ export function registerCrmIpc(): void {
         amountCents: number
         shareCents: number
         endDate: string
+        reqCurrent: string
+        reqAdded: string
+        reqFuture: string
       },
     ) => s().projects.update(id, p),
   )
@@ -129,27 +199,15 @@ export function registerCrmIpc(): void {
     s().files.listByProject(projectId),
   )
 
+  // 合同/协议可多选一次性上传
   ipcMain.handle('crm:files:pick', async (_e, projectId: number) => {
-    const result = await dialog.showOpenDialog({ properties: ['openFile'] })
+    const result = await dialog.showOpenDialog({ properties: ['openFile', 'multiSelections'] })
     if (result.canceled || result.filePaths.length === 0) return null
-
-    const src = result.filePaths[0]
-    const userData = app.getPath('userData')
-    const dir = join(userData, 'crm-files', String(projectId))
-    mkdirSync(dir, { recursive: true })
-
-    let destName = basename(src)
-    const destPath = join(dir, destName)
-    if (existsSync(destPath)) {
-      destName = `${Date.now()}-${destName}`
-    }
-    const dest = join(dir, destName)
-    copyFileSync(src, dest)
-
-    const size = statSync(dest).size
-    const storedPath = relative(userData, dest)
-    const newId = s().files.add(projectId, { name: basename(src), storedPath, size })
-    return s().files.get(newId)
+    return result.filePaths.map((src) => {
+      const { storedPath, size } = copyIntoCrmDir(src, String(projectId))
+      const newId = s().files.add(projectId, { name: basename(src), storedPath, size })
+      return s().files.get(newId)
+    })
   })
 
   ipcMain.handle('crm:files:open', async (_e, id: number) => {
@@ -166,5 +224,30 @@ export function registerCrmIpc(): void {
       rmSync(join(userData, row.storedPath), { force: true })
     }
     s().files.remove(id)
+  })
+
+  // docs：CRM 文档库（合同模板、公司介绍等）
+  ipcMain.handle('crm:docs:list', (_e, q?: string) => s().docs.list(q))
+
+  ipcMain.handle('crm:docs:pick', async () => {
+    const result = await dialog.showOpenDialog({ properties: ['openFile', 'multiSelections'] })
+    if (result.canceled || result.filePaths.length === 0) return null
+    return result.filePaths.map((src) => {
+      const { storedPath, size } = copyIntoCrmDir(src, 'docs')
+      const newId = s().docs.add({ name: basename(src), storedPath, size })
+      return s().docs.get(newId)
+    })
+  })
+
+  ipcMain.handle('crm:docs:open', async (_e, id: number) => {
+    const row = s().docs.get(id)
+    if (!row) return
+    await shell.openPath(join(app.getPath('userData'), row.storedPath))
+  })
+
+  ipcMain.handle('crm:docs:remove', (_e, id: number) => {
+    const row = s().docs.get(id)
+    if (row) rmSync(join(app.getPath('userData'), row.storedPath), { force: true })
+    s().docs.remove(id)
   })
 }

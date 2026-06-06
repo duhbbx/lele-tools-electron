@@ -2,16 +2,17 @@ import { join } from 'node:path'
 import { BrowserWindow, app, shell } from 'electron'
 import { closeDb } from './db/sqlite'
 import { registerAiIpc } from './ipc/ai'
-import { registerCrmIpc } from './ipc/crm'
+import { registerCrmIpc, registerCrmProtocol } from './ipc/crm'
 import { registerGithubIpc } from './ipc/github'
-import { registerNotesIpc, registerNotesProtocol, registerNotesScheme } from './ipc/notes'
+import { registerNotesIpc, registerNotesProtocol } from './ipc/notes'
 import { registerStoreIpc } from './ipc/store'
 import { setupMenu } from './menu'
+import { registerAppSchemes } from './schemes'
 
 const isDev = !app.isPackaged
 
 // 自定义协议特权声明必须在 app ready 前
-registerNotesScheme()
+registerAppSchemes()
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -48,6 +49,7 @@ app.whenReady().then(() => {
   registerCrmIpc()
   registerNotesIpc()
   registerNotesProtocol()
+  registerCrmProtocol()
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

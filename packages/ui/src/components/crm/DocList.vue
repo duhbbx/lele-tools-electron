@@ -1,26 +1,19 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
-import type { CrmClient } from '@lele/shared-types'
+import type { CrmDoc } from '@lele/shared-types'
 import { t } from '../../i18n'
 import { useConfirmDelete } from './confirm'
-import { sourceLabel } from './options'
 
 const props = defineProps<{ refreshTick: number }>()
-const emit = defineEmits<{ open: [id: number, title: string]; add: []; deleted: [id: number] }>()
 
 const q = ref('')
-const type = ref<'' | 'company' | 'person'>('')
-const rows = ref<CrmClient[]>([])
+const rows = ref<CrmDoc[]>([])
 
 async function load(): Promise<void> {
   try {
-    rows.value =
-      (await window.api?.crm?.clients?.list?.({
-        q: q.value.trim() || undefined,
-        type: type.value || undefined,
-      })) ?? []
+    rows.value = (await window.api?.crm?.docs?.list?.(q.value.trim() || undefined)) ?? []
   } catch (e) {
-    console.warn('[ClientList] load error', e)
+    console.warn('[DocList] load error', e)
   }
 }
 
@@ -29,22 +22,43 @@ watch(q, () => {
   if (debounce !== null) clearTimeout(debounce)
   debounce = setTimeout(() => void load(), 200)
 })
-watch(type, () => void load())
 watch(() => props.refreshTick, () => void load())
 onMounted(() => void load())
 
+async function upload(): Promise<void> {
+  try {
+    const picked = await window.api?.crm?.docs?.pick?.()
+    if (picked?.length) await load()
+  } catch (e) {
+    console.warn('[DocList] upload error', e)
+  }
+}
+
+async function open(id: number): Promise<void> {
+  try {
+    await window.api?.crm?.docs?.open?.(id)
+  } catch (e) {
+    console.warn('[DocList] open error', e)
+  }
+}
+
 const { confirmingId, trigger } = useConfirmDelete(async (id) => {
   try {
-    await window.api?.crm?.clients?.remove?.(id)
-    emit('deleted', id)
+    await window.api?.crm?.docs?.remove?.(id)
     await load()
   } catch (e) {
-    console.warn('[ClientList] remove error', e)
+    console.warn('[DocList] remove error', e)
   }
 })
 
 function fmtDate(ts: number): string {
   return new Date(ts).toLocaleDateString('zh-CN')
+}
+
+function fmtSize(bytes: number): string {
+  return bytes >= 1024 * 1024
+    ? `${(bytes / 1024 / 1024).toFixed(1)} MB`
+    : `${(bytes / 1024).toFixed(1)} KB`
 }
 </script>
 
@@ -52,35 +66,26 @@ function fmtDate(ts: number): string {
   <div class="crm-list">
     <div class="filter-bar">
       <input v-model="q" class="input search" :placeholder="t('crm.searchName')" />
-      <select v-model="type" class="input">
-        <option value="">{{ t('crm.all') }}</option>
-        <option value="company">{{ t('crm.company') }}</option>
-        <option value="person">{{ t('crm.person') }}</option>
-      </select>
       <span class="spacer" />
-      <button class="btn btn-primary" @click="emit('add')">＋ {{ t('crm.add') }}</button>
+      <button class="btn btn-primary" @click="upload">＋ {{ t('crm.upload') }}</button>
     </div>
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
             <th>{{ t('crm.name') }}</th>
-            <th>{{ t('crm.type') }}</th>
-            <th>{{ t('crm.source') }}</th>
-            <th>{{ t('crm.note') }}</th>
-            <th>{{ t('crm.createdAt') }}</th>
+            <th>{{ t('crm.size') }}</th>
+            <th>{{ t('crm.uploadedAt') }}</th>
             <th>{{ t('crm.actions') }}</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="r in rows" :key="r.id" @dblclick="emit('open', r.id, r.name)">
-            <td>{{ r.name }}</td>
-            <td>{{ r.type === 'company' ? t('crm.company') : t('crm.person') }}</td>
-            <td>{{ sourceLabel(r.source) }}</td>
-            <td class="ellipsis">{{ r.note }}</td>
-            <td>{{ fmtDate(r.createdAt) }}</td>
+          <tr v-for="r in rows" :key="r.id" @dblclick="open(r.id)">
+            <td class="ellipsis">{{ r.name }}</td>
+            <td>{{ fmtSize(r.size) }}</td>
+            <td>{{ fmtDate(r.uploadedAt) }}</td>
             <td class="ops">
-              <button class="link" @click="emit('open', r.id, r.name)">{{ t('crm.detail') }}</button>
+              <button class="link" @click="open(r.id)">{{ t('crm.open') }}</button>
               <button
                 class="link danger"
                 :class="{ confirming: confirmingId === r.id }"

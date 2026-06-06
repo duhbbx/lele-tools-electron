@@ -93,6 +93,8 @@ export interface CrmClient {
   phone: string; email: string
   legalPerson: string; legalPersonPhone: string; uscc: string; regAddress: string; establishedDate: string
   source: CrmClientSource
+  /** 法人身份证正/反面图片（userData 相对路径，空串=未上传），渲染层经 crm-file:// 协议显示 */
+  idCardFront: string; idCardBack: string
   createdAt: number
 }
 export interface CrmContact { id: number; clientId: number; name: string; role: string; phone: string; wechat: string; email: string; sex: '' | 'male' | 'female'; note: string; createdAt: number }
@@ -101,10 +103,15 @@ export interface CrmProject {
   id: number; clientId: number; name: string; status: 'active' | 'done'
   description: string; serverAddr: string; domain: string; adminUrl: string; adminUser: string; adminPass: string
   wxAppId: string; wxAppSecret: string; wxPayParams: string
-  amountCents: number; shareCents: number; endDate: string; createdAt: number; updatedAt: number
+  amountCents: number; shareCents: number; endDate: string
+  /** 需求分区：当前需求 / 本期追加需求 / 后期需求 */
+  reqCurrent: string; reqAdded: string; reqFuture: string
+  createdAt: number; updatedAt: number
 }
 export interface CrmPayment { id: number; projectId: number; amountCents: number; paidAt: string; method: CrmPaymentMethod; note: string }
 export interface CrmFile { id: number; projectId: number; name: string; storedPath: string; size: number; uploadedAt: number }
+/** CRM 文档库（合同模板、公司介绍等，不挂在具体项目下） */
+export interface CrmDoc { id: number; name: string; storedPath: string; size: number; uploadedAt: number }
 
 export interface CrmClientFilter { q?: string; type?: 'company' | 'person' }
 export interface CrmContactFilter { q?: string; clientId?: number }
@@ -135,8 +142,11 @@ export interface CrmBridge {
     list(f?: CrmClientFilter): Promise<CrmClient[]>
     get(id: number): Promise<CrmClient | null>
     create(c: CrmClientInput): Promise<number>
-    update(id: number, c: Omit<CrmClient, 'id' | 'createdAt'>): Promise<void>
+    update(id: number, c: Omit<CrmClient, 'id' | 'createdAt' | 'idCardFront' | 'idCardBack'>): Promise<void>
     remove(id: number): Promise<void>
+    /** 弹文件框选身份证图片 → 拷贝入 userData → 更新列；返回存储相对路径，取消返回 null */
+    pickIdCard(id: number, side: 'front' | 'back'): Promise<string | null>
+    removeIdCard(id: number, side: 'front' | 'back'): Promise<void>
   }
   contacts: {
     listByClient(clientId: number): Promise<CrmContact[]>
@@ -161,8 +171,15 @@ export interface CrmBridge {
   }
   files: {
     listByProject(projectId: number): Promise<CrmFile[]>
-    /** 弹系统文件选择框 → 拷贝到 userData/crm-files/<projectId>/ → 入库；取消返回 null */
-    pick(projectId: number): Promise<CrmFile | null>
+    /** 弹系统文件选择框（可多选）→ 拷贝到 userData/crm-files/<projectId>/ → 入库；取消返回 null */
+    pick(projectId: number): Promise<CrmFile[] | null>
+    open(id: number): Promise<void>
+    remove(id: number): Promise<void>
+  }
+  docs: {
+    list(q?: string): Promise<CrmDoc[]>
+    /** 弹系统文件选择框（可多选）→ 拷贝到 userData/crm-files/docs/ → 入库；取消返回 null */
+    pick(): Promise<CrmDoc[] | null>
     open(id: number): Promise<void>
     remove(id: number): Promise<void>
   }
@@ -194,8 +211,17 @@ export interface NotesBridge {
   /** title 由渲染层从 content 提取后传入 */
   update(id: number, content: string, title: string): Promise<void>
   move(id: number, folderId: number | null): Promise<void>
-  /** 删笔记并清理 userData/notes-files/<id>/ */
+  /** 软删进回收站（附件保留，彻底删除时才清理） */
   remove(id: number): Promise<void>
+  trash: {
+    list(): Promise<NoteListItem[]>
+    /** 原文件夹还在则原位恢复，已删则回根目录 */
+    restore(id: number): Promise<void>
+    /** 彻底删除并清理 userData/notes-files/<id>/ */
+    removeForever(id: number): Promise<void>
+    /** 清空回收站（含附件目录） */
+    empty(): Promise<void>
+  }
   files: {
     /** 弹系统文件选择框（kind=image 时只给图片过滤器）→ 拷贝到 userData/notes-files/<noteId>/ → 入库；取消返回 null */
     pick(noteId: number, kind: 'image' | 'file'): Promise<NoteFile | null>

@@ -24,7 +24,8 @@ export function migrate(db: Database.Database): void {
       phone TEXT NOT NULL DEFAULT '', email TEXT NOT NULL DEFAULT '',
       legal_person TEXT NOT NULL DEFAULT '', legal_person_phone TEXT NOT NULL DEFAULT '',
       uscc TEXT NOT NULL DEFAULT '', reg_address TEXT NOT NULL DEFAULT '',
-      established_date TEXT NOT NULL DEFAULT '', source TEXT NOT NULL DEFAULT ''
+      established_date TEXT NOT NULL DEFAULT '', source TEXT NOT NULL DEFAULT '',
+      id_card_front TEXT NOT NULL DEFAULT '', id_card_back TEXT NOT NULL DEFAULT ''
     );
     CREATE TABLE IF NOT EXISTS crm_contacts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,6 +46,8 @@ export function migrate(db: Database.Database): void {
       wx_pay_params TEXT NOT NULL DEFAULT '[]',
       amount_cents INTEGER NOT NULL DEFAULT 0, share_cents INTEGER NOT NULL DEFAULT 0,
       end_date TEXT NOT NULL DEFAULT '',
+      req_current TEXT NOT NULL DEFAULT '', req_added TEXT NOT NULL DEFAULT '',
+      req_future TEXT NOT NULL DEFAULT '',
       created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
       deleted_at INTEGER
     );
@@ -60,6 +63,11 @@ export function migrate(db: Database.Database): void {
       name TEXT NOT NULL, stored_path TEXT NOT NULL, size INTEGER NOT NULL DEFAULT 0,
       uploaded_at INTEGER NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS crm_docs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL, stored_path TEXT NOT NULL, size INTEGER NOT NULL DEFAULT 0,
+      uploaded_at INTEGER NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS notes_folders (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       parent_id INTEGER REFERENCES notes_folders(id) ON DELETE CASCADE,
@@ -72,7 +80,8 @@ export function migrate(db: Database.Database): void {
       title TEXT NOT NULL DEFAULT '',
       content TEXT NOT NULL DEFAULT '',
       created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER
     );
     CREATE TABLE IF NOT EXISTS notes_files (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -99,6 +108,12 @@ export function migrate(db: Database.Database): void {
     ['crm_clients', 'source', "source TEXT NOT NULL DEFAULT ''"],
     ['crm_projects', 'share_cents', 'share_cents INTEGER NOT NULL DEFAULT 0'],
     ['crm_payments', 'method', "method TEXT NOT NULL DEFAULT ''"],
+    ['crm_clients', 'id_card_front', "id_card_front TEXT NOT NULL DEFAULT ''"],
+    ['crm_clients', 'id_card_back', "id_card_back TEXT NOT NULL DEFAULT ''"],
+    ['crm_projects', 'req_current', "req_current TEXT NOT NULL DEFAULT ''"],
+    ['crm_projects', 'req_added', "req_added TEXT NOT NULL DEFAULT ''"],
+    ['crm_projects', 'req_future', "req_future TEXT NOT NULL DEFAULT ''"],
+    ['notes', 'deleted_at', 'deleted_at INTEGER'],
   ]
   for (const [table, column, ddl] of GUARDED_COLUMNS) {
     const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]

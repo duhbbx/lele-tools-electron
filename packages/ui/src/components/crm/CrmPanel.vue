@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { t } from '../../i18n'
 import ToolTabs from '../ToolTabs.vue'
 import ClientEditor from './ClientEditor.vue'
@@ -7,6 +7,7 @@ import ClientList from './ClientList.vue'
 import ContactEditor from './ContactEditor.vue'
 import ContactList from './ContactList.vue'
 import CrmNewForm from './CrmNewForm.vue'
+import DocList from './DocList.vue'
 import ProjectEditor from './ProjectEditor.vue'
 import ProjectList from './ProjectList.vue'
 
@@ -15,6 +16,7 @@ type CrmTabComp =
   | 'client-list'
   | 'contact-list'
   | 'project-list'
+  | 'doc-list'
   | 'client'
   | 'contact'
   | 'project'
@@ -45,9 +47,15 @@ const NAV = [
   { key: 'list:clients', comp: 'client-list', icon: '🏢', labelKey: 'crm.clients' },
   { key: 'list:contacts', comp: 'contact-list', icon: '👤', labelKey: 'crm.contacts' },
   { key: 'list:projects', comp: 'project-list', icon: '📁', labelKey: 'crm.projects' },
+  { key: 'list:docs', comp: 'doc-list', icon: '📄', labelKey: 'crm.docs' },
 ] as const
 
 onMounted(() => openList(NAV[0]))
+
+// 切回列表 tab 时自动按当前筛选条件重新查询（详情里改完数据回来即见最新）
+watch(active, (key) => {
+  if (key?.startsWith('list:')) refreshTick.value++
+})
 
 function openList(nav: (typeof NAV)[number]): void {
   if (!tabs.value.find((x) => x.key === nav.key)) {
@@ -169,6 +177,7 @@ function reorder(fromKey: string, toKey: string): void {
             @add="openNew('project')"
             @deleted="(id) => onListDeleted('project', id)"
           />
+          <DocList v-else-if="tab.comp === 'doc-list'" :refresh-tick="refreshTick" />
           <ClientEditor
             v-else-if="tab.comp === 'client'"
             :ref-id="tab.refId!"

@@ -25,6 +25,10 @@ const form = reactive({
   // wechat
   wxAppId: '',
   wxAppSecret: '',
+  // 需求分区
+  reqCurrent: '',
+  reqAdded: '',
+  reqFuture: '',
 })
 
 // wxPayParams: { k: string; v: string }[]
@@ -34,10 +38,13 @@ const clientName = ref('')
 
 const SECTIONS = [
   { key: 'basic', label: '基本信息' },
+  { key: 'reqCurrent', label: '当前需求' },
+  { key: 'reqAdded', label: '本期追加需求' },
+  { key: 'reqFuture', label: '后期需求' },
   { key: 'deploy', label: '部署信息' },
   { key: 'wx', label: '微信' },
   { key: 'payments', label: '收款记录' },
-  { key: 'files', label: '合同' },
+  { key: 'files', label: '合同协议' },
 ] as const
 const activeSection = ref<(typeof SECTIONS)[number]['key']>('basic')
 
@@ -92,6 +99,9 @@ function fillForm(p: CrmProject): void {
   form.adminPass = p.adminPass
   form.wxAppId = p.wxAppId
   form.wxAppSecret = p.wxAppSecret
+  form.reqCurrent = p.reqCurrent
+  form.reqAdded = p.reqAdded
+  form.reqFuture = p.reqFuture
   try {
     const parsed = JSON.parse(p.wxPayParams)
     wxPayRows.value = Array.isArray(parsed) ? parsed : []
@@ -191,8 +201,9 @@ async function loadFiles(): Promise<void> {
 
 async function pickFile(): Promise<void> {
   try {
-    const file = await window.api?.crm?.files?.pick?.(props.refId)
-    if (file) await loadFiles()
+    // 系统文件框允许多选，一次上传多份合同/附加协议
+    const picked = await window.api?.crm?.files?.pick?.(props.refId)
+    if (picked?.length) await loadFiles()
   } catch (e) {
     console.warn('[ProjectEditor] pickFile error', e)
   }
@@ -272,6 +283,9 @@ async function save(): Promise<void> {
       wxAppId: form.wxAppId,
       wxAppSecret: form.wxAppSecret,
       wxPayParams: JSON.stringify(wxPayRows.value),
+      reqCurrent: form.reqCurrent,
+      reqAdded: form.reqAdded,
+      reqFuture: form.reqFuture,
     })
     dirty.value = false
     emit('rename', form.name)
@@ -370,6 +384,17 @@ function formatSize(bytes: number): string {
         <span>结束时间</span>
         <input v-model="form.endDate" class="input" type="date" @input="markDirty" />
       </label>
+    </div>
+
+    <!-- 需求分区：当前 / 本期追加 / 后期 -->
+    <div v-show="activeSection === 'reqCurrent'" class="req-section">
+      <textarea v-model="form.reqCurrent" class="input req-textarea" placeholder="当前需求…" @input="markDirty" />
+    </div>
+    <div v-show="activeSection === 'reqAdded'" class="req-section">
+      <textarea v-model="form.reqAdded" class="input req-textarea" placeholder="本期追加需求…" @input="markDirty" />
+    </div>
+    <div v-show="activeSection === 'reqFuture'" class="req-section">
+      <textarea v-model="form.reqFuture" class="input req-textarea" placeholder="后期需求…" @input="markDirty" />
     </div>
 
     <!-- Section 2: 部署信息 -->
@@ -505,9 +530,9 @@ function formatSize(bytes: number): string {
           >{{ fileDeleteConfirmId === file.id ? '确认?' : '×' }}</button>
         </div>
       </div>
-      <p v-else class="empty-hint">暂无合同</p>
+      <p v-else class="empty-hint">暂无合同/协议</p>
 
-      <button type="button" class="btn btn-add" @click="pickFile">上传合同</button>
+      <button type="button" class="btn btn-add" @click="pickFile">上传合同/协议（可多选）</button>
     </div>
   </div>
 </template>
@@ -559,6 +584,17 @@ function formatSize(bytes: number): string {
         border-bottom-color: var(--accent);
         font-weight: 600;
       }
+    }
+  }
+
+  .req-section {
+    display: flex;
+
+    .req-textarea {
+      flex: 1;
+      min-height: 260px;
+      resize: vertical;
+      line-height: 1.6;
     }
   }
 

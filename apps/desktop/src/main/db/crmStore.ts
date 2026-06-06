@@ -17,6 +17,8 @@ export interface CrmClientRow {
   regAddress: string
   establishedDate: string
   source: CrmClientSource
+  idCardFront: string
+  idCardBack: string
   createdAt: number
 }
 
@@ -50,6 +52,9 @@ export interface CrmProjectRow {
   amountCents: number
   shareCents: number
   endDate: string
+  reqCurrent: string
+  reqAdded: string
+  reqFuture: string
   createdAt: number
   updatedAt: number
 }
@@ -66,6 +71,14 @@ export interface CrmPaymentRow {
 export interface CrmFileRow {
   id: number
   projectId: number
+  name: string
+  storedPath: string
+  size: number
+  uploadedAt: number
+}
+
+export interface CrmDocRow {
+  id: number
   name: string
   storedPath: string
   size: number
@@ -96,7 +109,9 @@ function mapClient(r: Record<string, unknown>): CrmClientRow {
     uscc: r.uscc as string,
     regAddress: r.reg_address as string,
     establishedDate: r.established_date as string,
-    source: r.source as CrmClientSource,
+    source: (r.source as CrmClientSource | null) ?? '',
+    idCardFront: (r.id_card_front as string | null) ?? '',
+    idCardBack: (r.id_card_back as string | null) ?? '',
     createdAt: r.created_at as number,
   }
 }
@@ -131,9 +146,12 @@ function mapProject(r: Record<string, unknown>): CrmProjectRow {
     wxAppId: r.wx_app_id as string,
     wxAppSecret: r.wx_app_secret as string,
     wxPayParams: r.wx_pay_params as string,
-    amountCents: r.amount_cents as number,
-    shareCents: r.share_cents as number,
+    amountCents: (r.amount_cents as number | null) ?? 0,
+    shareCents: (r.share_cents as number | null) ?? 0,
     endDate: r.end_date as string,
+    reqCurrent: (r.req_current as string | null) ?? '',
+    reqAdded: (r.req_added as string | null) ?? '',
+    reqFuture: (r.req_future as string | null) ?? '',
     createdAt: r.created_at as number,
     updatedAt: r.updated_at as number,
   }
@@ -143,9 +161,9 @@ function mapPayment(r: Record<string, unknown>): CrmPaymentRow {
   return {
     id: r.id as number,
     projectId: r.project_id as number,
-    amountCents: r.amount_cents as number,
+    amountCents: (r.amount_cents as number | null) ?? 0,
     paidAt: r.paid_at as string,
-    method: r.method as CrmPaymentMethod,
+    method: (r.method as CrmPaymentMethod | null) ?? '',
     note: r.note as string,
   }
 }
@@ -213,7 +231,7 @@ export function makeCrmStore(db: Database.Database) {
           )
         return result.lastInsertRowid as number
       },
-      update(id: number, c: Omit<CrmClientRow, 'id' | 'createdAt'>): void {
+      update(id: number, c: Omit<CrmClientRow, 'id' | 'createdAt' | 'idCardFront' | 'idCardBack'>): void {
         db.prepare(
           `UPDATE crm_clients SET
             name = ?, type = ?, note = ?, phone = ?, email = ?,
@@ -226,6 +244,11 @@ export function makeCrmStore(db: Database.Database) {
           c.source,
           id,
         )
+      },
+      /** 身份证正/反面图片路径单独维护（上传/删除即生效，不走整体 update） */
+      setIdCard(id: number, side: 'front' | 'back', storedPath: string): void {
+        const col = side === 'front' ? 'id_card_front' : 'id_card_back'
+        db.prepare(`UPDATE crm_clients SET ${col} = ? WHERE id = ?`).run(storedPath, id)
       },
       remove(id: number): void {
         const now = Date.now()
@@ -354,8 +377,8 @@ export function makeCrmStore(db: Database.Database) {
           name: r.name as string,
           status: r.status as 'active' | 'done',
           clientName: r.client_name as string,
-          amountCents: r.amount_cents as number,
-          shareCents: r.share_cents as number,
+          amountCents: (r.amount_cents as number | null) ?? 0,
+          shareCents: (r.share_cents as number | null) ?? 0,
           endDate: r.end_date as string,
         }))
       },
@@ -399,7 +422,8 @@ export function makeCrmStore(db: Database.Database) {
           `UPDATE crm_projects SET
             name = ?, status = ?, description = ?, server_addr = ?, domain = ?,
             admin_url = ?, admin_user = ?, admin_pass = ?, wx_app_id = ?, wx_app_secret = ?,
-            wx_pay_params = ?, amount_cents = ?, share_cents = ?, end_date = ?, updated_at = ?
+            wx_pay_params = ?, amount_cents = ?, share_cents = ?, end_date = ?,
+            req_current = ?, req_added = ?, req_future = ?, updated_at = ?
           WHERE id = ?`,
         ).run(
           p.name,
@@ -416,6 +440,9 @@ export function makeCrmStore(db: Database.Database) {
           p.amountCents,
           p.shareCents,
           p.endDate,
+          p.reqCurrent,
+          p.reqAdded,
+          p.reqFuture,
           Date.now(),
           id,
         )
@@ -476,6 +503,45 @@ export function makeCrmStore(db: Database.Database) {
       },
       remove(id: number): void {
         db.prepare('DELETE FROM crm_files WHERE id = ?').run(id)
+      },
+    },
+
+    docs: {
+      list(q?: string): CrmDocRow[] {
+        const rows = (
+          q
+            ? db.prepare('SELECT * FROM crm_docs WHERE name LIKE ? ORDER BY uploaded_at DESC, id DESC').all(`%${q}%`)
+            : db.prepare('SELECT * FROM crm_docs ORDER BY uploaded_at DESC, id DESC').all()
+        ) as Record<string, unknown>[]
+        return rows.map((r) => ({
+          id: r.id as number,
+          name: r.name as string,
+          storedPath: r.stored_path as string,
+          size: r.size as number,
+          uploadedAt: r.uploaded_at as number,
+        }))
+      },
+      add(d: { name: string; storedPath: string; size: number }): number {
+        const result = db
+          .prepare('INSERT INTO crm_docs(name, stored_path, size, uploaded_at) VALUES(?, ?, ?, ?)')
+          .run(d.name, d.storedPath, d.size, Date.now())
+        return result.lastInsertRowid as number
+      },
+      get(id: number): CrmDocRow | null {
+        const row = db.prepare('SELECT * FROM crm_docs WHERE id = ?').get(id) as
+          | Record<string, unknown>
+          | undefined
+        if (!row) return null
+        return {
+          id: row.id as number,
+          name: row.name as string,
+          storedPath: row.stored_path as string,
+          size: row.size as number,
+          uploadedAt: row.uploaded_at as number,
+        }
+      },
+      remove(id: number): void {
+        db.prepare('DELETE FROM crm_docs WHERE id = ?').run(id)
       },
     },
   }

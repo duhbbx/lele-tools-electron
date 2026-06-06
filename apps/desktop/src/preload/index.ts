@@ -81,6 +81,12 @@ const api: WindowApi = {
       ipcRenderer.invoke('notes:update', id, content, title),
     move: (id: number, folderId: number | null) => ipcRenderer.invoke('notes:move', id, folderId),
     remove: (id: number) => ipcRenderer.invoke('notes:remove', id),
+    trash: {
+      list: () => ipcRenderer.invoke('notes:trash:list'),
+      restore: (id: number) => ipcRenderer.invoke('notes:trash:restore', id),
+      removeForever: (id: number) => ipcRenderer.invoke('notes:trash:removeForever', id),
+      empty: () => ipcRenderer.invoke('notes:trash:empty'),
+    },
     files: {
       pick: (noteId: number, kind: 'image' | 'file') =>
         ipcRenderer.invoke('notes:files:pick', noteId, kind),
@@ -111,6 +117,10 @@ const api: WindowApi = {
         },
       ) => ipcRenderer.invoke('crm:clients:update', id, c),
       remove: (id: number) => ipcRenderer.invoke('crm:clients:remove', id),
+      pickIdCard: (id: number, side: 'front' | 'back') =>
+        ipcRenderer.invoke('crm:clients:pickIdCard', id, side),
+      removeIdCard: (id: number, side: 'front' | 'back') =>
+        ipcRenderer.invoke('crm:clients:removeIdCard', id, side),
     },
     contacts: {
       listByClient: (clientId: number) =>
@@ -166,6 +176,9 @@ const api: WindowApi = {
           amountCents: number
           shareCents: number
           endDate: string
+          reqCurrent: string
+          reqAdded: string
+          reqFuture: string
         },
       ) => ipcRenderer.invoke('crm:projects:update', id, p),
       remove: (id: number) => ipcRenderer.invoke('crm:projects:remove', id),
@@ -183,6 +196,12 @@ const api: WindowApi = {
       pick: (projectId: number) => ipcRenderer.invoke('crm:files:pick', projectId),
       open: (id: number) => ipcRenderer.invoke('crm:files:open', id),
       remove: (id: number) => ipcRenderer.invoke('crm:files:remove', id),
+    },
+    docs: {
+      list: (q?: string) => ipcRenderer.invoke('crm:docs:list', q),
+      pick: () => ipcRenderer.invoke('crm:docs:pick'),
+      open: (id: number) => ipcRenderer.invoke('crm:docs:open', id),
+      remove: (id: number) => ipcRenderer.invoke('crm:docs:remove', id),
     },
   },
 }
