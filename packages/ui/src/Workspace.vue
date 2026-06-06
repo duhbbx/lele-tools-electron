@@ -105,8 +105,10 @@ function reorder(fromKey: string, toKey: string): void {
   grid-template-rows: minmax(0, 1fr);
   height: 100%;
   &.with-ai { grid-template-columns: 240px 1fr 340px; }
-  &.nav-collapsed { grid-template-columns: 0 1fr; }
-  &.nav-collapsed.with-ai { grid-template-columns: 0 1fr 340px; }
+  // 收起时不能留 0 宽轨道：v-show 的 display:none 让 SideNav 不生成 grid item，
+  // .main 会被自动放置顶进第一条（0 宽）轨道，整个界面被压没。轨道数跟随在流子元素数。
+  &.nav-collapsed { grid-template-columns: 1fr; }
+  &.nav-collapsed.with-ai { grid-template-columns: 1fr 340px; }
   .main { display: flex; flex-direction: column; min-width: 0; }
   .tabbar-row { display: flex; align-items: stretch; .grow { flex: 1; min-width: 0; } .ai-toggle { margin: 6px 8px 0; } .nav-toggle { margin: 6px 0 0 8px; } }
   .body { flex: 1; min-height: 0; overflow: hidden; position: relative; }
