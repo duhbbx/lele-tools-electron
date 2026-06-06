@@ -25,18 +25,44 @@ describe('crm clients', () => {
   })
 })
 
-describe('cascade + children', () => {
-  it('deleting a client cascades contacts/projects/payments/files', () => {
+describe('soft delete', () => {
+  it('删除客户后 list/get 不可见，但行还在库里', () => {
+    const id = store.clients.create({ name: '某公司', type: 'company', note: '' })
+    store.clients.remove(id)
+    expect(store.clients.list()).toHaveLength(0)
+    expect(store.clients.get(id)).toBeNull()
+    const raw = db.prepare('SELECT deleted_at FROM crm_clients WHERE id = ?').get(id) as
+      | { deleted_at: number | null }
+      | undefined
+    expect(raw?.deleted_at).toBeTypeOf('number')
+  })
+
+  it('删除客户级联给其下干系人/项目打标；payments/files 数据保留', () => {
     const cid = store.clients.create({ name: 'c', type: 'person', note: '' })
     const pid = store.projects.create(cid, '项目A')
-    store.contacts.create(cid, '张总')
+    const ctid = store.contacts.create(cid, '张总')
     store.payments.add(pid, { amountCents: 100_00, paidAt: '2026-06-01', note: '' })
     store.files.add(pid, { name: '合同.pdf', storedPath: 'crm-files/1/合同.pdf', size: 10 })
     store.clients.remove(cid)
     expect(store.contacts.listByClient(cid)).toHaveLength(0)
+    expect(store.contacts.get(ctid)).toBeNull()
     expect(store.projects.listByClient(cid)).toHaveLength(0)
-    expect(store.payments.listByProject(pid)).toHaveLength(0)
-    expect(store.files.listByProject(pid)).toHaveLength(0)
+    expect(store.projects.get(pid)).toBeNull()
+    // 项目入口已隐藏，子表数据保留在库里即可
+    expect(store.payments.listByProject(pid)).toHaveLength(1)
+    expect(store.files.listByProject(pid)).toHaveLength(1)
+  })
+
+  it('单删干系人/项目同样仅隐藏', () => {
+    const cid = store.clients.create({ name: 'c', type: 'company', note: '' })
+    const ctid = store.contacts.create(cid, '张总')
+    const pid = store.projects.create(cid, 'P')
+    store.contacts.remove(ctid)
+    store.projects.remove(pid)
+    expect(store.contacts.get(ctid)).toBeNull()
+    expect(store.contacts.listByClient(cid)).toHaveLength(0)
+    expect(store.projects.get(pid)).toBeNull()
+    expect(store.projects.listByClient(cid)).toHaveLength(0)
   })
 })
 

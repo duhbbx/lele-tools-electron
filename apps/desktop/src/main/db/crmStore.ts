@@ -128,16 +128,15 @@ export function makeCrmStore(db: Database.Database) {
   return {
     clients: {
       list(): CrmClientRow[] {
-        const rows = db.prepare('SELECT * FROM crm_clients ORDER BY name').all() as Record<
-          string,
-          unknown
-        >[]
+        const rows = db
+          .prepare('SELECT * FROM crm_clients WHERE deleted_at IS NULL ORDER BY name')
+          .all() as Record<string, unknown>[]
         return rows.map(mapClient)
       },
       get(id: number): CrmClientRow | null {
-        const row = db.prepare('SELECT * FROM crm_clients WHERE id = ?').get(id) as
-          | Record<string, unknown>
-          | undefined
+        const row = db
+          .prepare('SELECT * FROM crm_clients WHERE id = ? AND deleted_at IS NULL')
+          .get(id) as Record<string, unknown> | undefined
         return row ? mapClient(row) : null
       },
       create(c: { name: string; type: 'company' | 'person'; note: string }): number {
@@ -157,21 +156,32 @@ export function makeCrmStore(db: Database.Database) {
         )
       },
       remove(id: number): void {
-        db.prepare('DELETE FROM crm_clients WHERE id = ?').run(id)
+        const now = Date.now()
+        db.transaction(() => {
+          db.prepare('UPDATE crm_clients SET deleted_at = ? WHERE id = ?').run(now, id)
+          db.prepare(
+            'UPDATE crm_contacts SET deleted_at = ? WHERE client_id = ? AND deleted_at IS NULL',
+          ).run(now, id)
+          db.prepare(
+            'UPDATE crm_projects SET deleted_at = ? WHERE client_id = ? AND deleted_at IS NULL',
+          ).run(now, id)
+        })()
       },
     },
 
     contacts: {
       listByClient(clientId: number): CrmContactRow[] {
         const rows = db
-          .prepare('SELECT * FROM crm_contacts WHERE client_id = ? ORDER BY name')
+          .prepare(
+            'SELECT * FROM crm_contacts WHERE client_id = ? AND deleted_at IS NULL ORDER BY name',
+          )
           .all(clientId) as Record<string, unknown>[]
         return rows.map(mapContact)
       },
       get(id: number): CrmContactRow | null {
-        const row = db.prepare('SELECT * FROM crm_contacts WHERE id = ?').get(id) as
-          | Record<string, unknown>
-          | undefined
+        const row = db
+          .prepare('SELECT * FROM crm_contacts WHERE id = ? AND deleted_at IS NULL')
+          .get(id) as Record<string, unknown> | undefined
         return row ? mapContact(row) : null
       },
       create(clientId: number, name: string): number {
@@ -191,21 +201,23 @@ export function makeCrmStore(db: Database.Database) {
         ).run(c.name, c.role, c.phone, c.wechat, c.email, c.note, id)
       },
       remove(id: number): void {
-        db.prepare('DELETE FROM crm_contacts WHERE id = ?').run(id)
+        db.prepare('UPDATE crm_contacts SET deleted_at = ? WHERE id = ?').run(Date.now(), id)
       },
     },
 
     projects: {
       listByClient(clientId: number): { id: number; name: string; status: string }[] {
         const rows = db
-          .prepare('SELECT id, name, status FROM crm_projects WHERE client_id = ? ORDER BY name')
+          .prepare(
+            'SELECT id, name, status FROM crm_projects WHERE client_id = ? AND deleted_at IS NULL ORDER BY name',
+          )
           .all(clientId) as { id: number; name: string; status: string }[]
         return rows
       },
       get(id: number): CrmProjectRow | null {
-        const row = db.prepare('SELECT * FROM crm_projects WHERE id = ?').get(id) as
-          | Record<string, unknown>
-          | undefined
+        const row = db
+          .prepare('SELECT * FROM crm_projects WHERE id = ? AND deleted_at IS NULL')
+          .get(id) as Record<string, unknown> | undefined
         return row ? mapProject(row) : null
       },
       create(clientId: number, name: string): number {
@@ -250,7 +262,7 @@ export function makeCrmStore(db: Database.Database) {
         )
       },
       remove(id: number): void {
-        db.prepare('DELETE FROM crm_projects WHERE id = ?').run(id)
+        db.prepare('UPDATE crm_projects SET deleted_at = ? WHERE id = ?').run(Date.now(), id)
       },
     },
 
