@@ -1,6 +1,16 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { askAiChatStream } from './ai'
-import { settings } from './settings'
+import { type AiProvider, settings } from './settings'
+
+/** 默认配置档 id 即 provider；选中并填好地址/key */
+function useProfile(provider: AiProvider, baseUrl: string, apiKey: string): void {
+  settings.activeAiId = provider
+  const p = settings.aiProfiles.find((x) => x.id === provider)
+  if (p) {
+    p.baseUrl = baseUrl
+    p.apiKey = apiKey
+  }
+}
 
 describe('askAiChatStream', () => {
   // 模拟主进程 bridge：按给定 chunk 顺序回调 onChunk，再 resolve
@@ -22,9 +32,7 @@ describe('askAiChatStream', () => {
   })
 
   it('accumulates OpenAI-compat deltas across a frame split mid-chunk', async () => {
-    settings.aiProvider = 'openai'
-    settings.aiProviders.openai.baseUrl = 'https://api.openai.com'
-    settings.aiProviders.openai.apiKey = 'sk-x'
+    useProfile('openai', 'https://api.openai.com', 'sk-x')
     // 第 2、3 个 chunk 把一个 `\n\n` 帧边界劈成两半，考验跨 chunk 累积
     mockBridge([
       'data: {"choices":[{"delta":{"content":"Hel"}}]}\n\n',
@@ -41,9 +49,7 @@ describe('askAiChatStream', () => {
   })
 
   it('parses Anthropic content_block_delta events (ignores non-text events)', async () => {
-    settings.aiProvider = 'anthropic'
-    settings.aiProviders.anthropic.baseUrl = 'https://api.anthropic.com'
-    settings.aiProviders.anthropic.apiKey = 'sk-ant'
+    useProfile('anthropic', 'https://api.anthropic.com', 'sk-ant')
     mockBridge([
       'event: message_start\ndata: {"type":"message_start"}\n\n',
       'event: content_block_delta\ndata: {"type":"content_block_delta","delta":{"text":"AB"}}\n\n',
@@ -54,9 +60,7 @@ describe('askAiChatStream', () => {
   })
 
   it('local provider (ollama) streams with no API key', async () => {
-    settings.aiProvider = 'ollama'
-    settings.aiProviders.ollama.baseUrl = 'http://localhost:11434'
-    settings.aiProviders.ollama.apiKey = ''
+    useProfile('ollama', 'http://localhost:11434', '')
     mockBridge(['data: {"choices":[{"delta":{"content":"hi"}}]}\n\n', 'data: [DONE]\n\n'])
     const out = await askAiChatStream({ messages: [{ role: 'user', content: 'x' }] }, () => {})
     expect(out).toBe('hi')

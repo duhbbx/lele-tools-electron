@@ -1,5 +1,5 @@
 import { locale } from './i18n'
-import { type AiProvider, isLocalAiProvider, settings } from './settings'
+import { activeAiProfile, type AiProvider, isLocalAiProvider } from './settings'
 
 /** 根据当前 UI 语言生成「请用对应语言回答」的提示，让 AI 回复跟着我们的 i18n 走。 */
 function langPrompt(): string {
@@ -249,9 +249,10 @@ function buildSystem(o: ChatOptions): string {
 }
 
 export async function askAiChat(o: ChatOptions): Promise<string> {
-  const provider = settings.aiProvider
-  const cfg = settings.aiProviders[provider]
-  const key = resolveKey(provider, cfg?.apiKey)
+  const cfg = activeAiProfile()
+  if (!cfg) throw new Error('NO_PROVIDER')
+  const provider = cfg.provider
+  const key = resolveKey(provider, cfg.apiKey)
   const base = (cfg?.baseUrl || '').replace(/\/$/, '')
   if (!base) throw new Error('NO_BASE_URL')
   const model = cfg.model || 'default'
@@ -303,9 +304,10 @@ export async function askAiChatStream(
   o: ChatOptions,
   onToken: (delta: string) => void,
 ): Promise<string> {
-  const provider = settings.aiProvider
-  const cfg = settings.aiProviders[provider]
-  const key = resolveKey(provider, cfg?.apiKey)
+  const cfg = activeAiProfile()
+  if (!cfg) throw new Error('NO_PROVIDER')
+  const provider = cfg.provider
+  const key = resolveKey(provider, cfg.apiKey)
   const base = (cfg?.baseUrl || '').replace(/\/$/, '')
   if (!base) throw new Error('NO_BASE_URL')
   const model = cfg.model || 'default'
@@ -365,7 +367,7 @@ export async function askAiChatStream(
 }
 
 export function currentProvider(): AiProvider {
-  return settings.aiProvider
+  return activeAiProfile()?.provider ?? 'deepseek'
 }
 
 // ── Connectivity test ────────────────────────────────────────────────

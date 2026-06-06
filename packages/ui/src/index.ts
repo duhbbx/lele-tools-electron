@@ -12,14 +12,18 @@ export { centsToYuan, yuanToCents } from './money'
 export { copyText } from './clipboard'
 export { default as ToolTabs } from './components/ToolTabs.vue'
 export {
+  activeAiProfile,
+  addAiProfile,
   AI_PROVIDER_DEFAULTS,
   AI_PROVIDER_LABEL,
   AI_PROVIDER_ORDER,
+  type AiProfile,
   type AiProvider,
   type AiProviderConfig,
   initSettings,
   isActiveAiConfigured,
   isLocalAiProvider,
+  removeAiProfile,
   resolvedTheme,
   settings,
 } from './settings'

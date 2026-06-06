@@ -17,6 +17,17 @@ export interface AiProviderConfig {
   baseUrl: string
 }
 
+/** 一个可命名的 AI 配置档（可同 provider 配多个，类似 db tools 的连接配置）。 */
+export interface AiProfile extends AiProviderConfig {
+  id: string
+  name: string
+  provider: AiProvider
+}
+
+function genAiId(): string {
+  return `ai_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+}
+
 export const AI_PROVIDER_LABEL: Record<AiProvider, string> = {
   anthropic: 'Claude (Anthropic)',
   openai: 'ChatGPT (OpenAI)',
@@ -42,8 +53,19 @@ export interface Settings {
   theme: 'dark' | 'light' | 'system'
   navWidth: number
   navCollapsed: boolean
-  aiProvider: AiProvider
-  aiProviders: Record<AiProvider, AiProviderConfig>
+  /** AI 配置档列表 + 当前激活档 id（可配多个，运行时按 activeAiId 选用） */
+  aiProfiles: AiProfile[]
+  activeAiId: string
+}
+
+/** 初始档：每个内置 provider 一份（id=provider），方便直接填 key 用 */
+function defaultAiProfiles(): AiProfile[] {
+  return AI_PROVIDER_ORDER.map((p) => ({
+    id: p,
+    name: AI_PROVIDER_LABEL[p],
+    provider: p,
+    ...structuredClone(AI_PROVIDER_DEFAULTS[p]),
+  }))
 }
 
 function defaults(): Settings {
@@ -52,9 +74,36 @@ function defaults(): Settings {
     theme: 'system',
     navWidth: 240,
     navCollapsed: false,
-    aiProvider: 'deepseek',
-    aiProviders: structuredClone(AI_PROVIDER_DEFAULTS),
+    aiProfiles: defaultAiProfiles(),
+    activeAiId: 'deepseek',
   }
+}
+
+/** 兼容旧结构（aiProvider + aiProviders）→ 新的 aiProfiles + activeAiId */
+function normalizeAi(saved: Record<string, unknown>): Pick<Settings, 'aiProfiles' | 'activeAiId'> {
+  if (Array.isArray(saved.aiProfiles) && saved.aiProfiles.length) {
+    const aiProfiles = saved.aiProfiles as AiProfile[]
+    const activeAiId =
+      typeof saved.activeAiId === 'string' &&
+      aiProfiles.some((p) => p.id === saved.activeAiId)
+        ? saved.activeAiId
+        : aiProfiles[0].id
+    return { aiProfiles, activeAiId }
+  }
+  // 旧库迁移：把每个 provider 的配置转成一份档
+  const old = saved.aiProviders as Partial<Record<AiProvider, AiProviderConfig>> | undefined
+  if (old) {
+    const aiProfiles = AI_PROVIDER_ORDER.map((p) => ({
+      id: p,
+      name: AI_PROVIDER_LABEL[p],
+      provider: p,
+      ...AI_PROVIDER_DEFAULTS[p],
+      ...(old[p] ?? {}),
+    }))
+    const activeAiId = typeof saved.aiProvider === 'string' ? saved.aiProvider : 'deepseek'
+    return { aiProfiles, activeAiId }
+  }
+  return { aiProfiles: defaultAiProfiles(), activeAiId: 'deepseek' }
 }
 
 const KEY = 'lele.settings'
@@ -64,13 +113,9 @@ function load(): Settings {
   try {
     const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(KEY) : null
     if (!raw) return defaults()
-    const saved = JSON.parse(raw) as Partial<Settings>
+    const saved = JSON.parse(raw) as Record<string, unknown>
     const base = defaults()
-    return {
-      ...base,
-      ...saved,
-      aiProviders: { ...base.aiProviders, ...(saved.aiProviders ?? {}) },
-    }
+    return { ...base, ...(saved as Partial<Settings>), ...normalizeAi(saved) }
   } catch {
     return defaults()
   }
@@ -78,12 +123,39 @@ function load(): Settings {
 
 export const settings = reactive<Settings>(load())
 
-/** 当前激活 provider 是否已配好（足以发请求）。本地 provider 只需 baseUrl。 */
+/** 当前激活的 AI 配置档（找不到则退回第一份） */
+export function activeAiProfile(): AiProfile | undefined {
+  return settings.aiProfiles.find((p) => p.id === settings.activeAiId) ?? settings.aiProfiles[0]
+}
+
+/** 新增一份配置档（默认套用该 provider 的缺省值），返回新档 id 并设为激活 */
+export function addAiProfile(provider: AiProvider = 'deepseek'): string {
+  const id = genAiId()
+  const n = settings.aiProfiles.filter((p) => p.provider === provider).length
+  settings.aiProfiles.push({
+    id,
+    name: `${AI_PROVIDER_LABEL[provider]}${n ? ` ${n + 1}` : ''}`,
+    provider,
+    ...structuredClone(AI_PROVIDER_DEFAULTS[provider]),
+  })
+  settings.activeAiId = id
+  return id
+}
+
+/** 删除一份配置档；删的是激活档时回退到第一份；至少保留一份 */
+export function removeAiProfile(id: string): void {
+  if (settings.aiProfiles.length <= 1) return
+  const idx = settings.aiProfiles.findIndex((p) => p.id === id)
+  if (idx === -1) return
+  settings.aiProfiles.splice(idx, 1)
+  if (settings.activeAiId === id) settings.activeAiId = settings.aiProfiles[0]?.id ?? ''
+}
+
+/** 当前激活档是否已配好（足以发请求）。本地 provider 只需 baseUrl。 */
 export function isActiveAiConfigured(): boolean {
-  const p = settings.aiProvider
-  const cfg = settings.aiProviders[p]
+  const cfg = activeAiProfile()
   if (!cfg?.baseUrl?.trim()) return false
-  return isLocalAiProvider(p) ? true : !!cfg.apiKey?.trim()
+  return isLocalAiProvider(cfg.provider) ? true : !!cfg.apiKey?.trim()
 }
 
 let hydrated = false
@@ -95,11 +167,11 @@ export async function hydrateSettings(): Promise<void> {
   try {
     const raw = await bridge.get(KEY)
     if (raw) {
-      const parsed = JSON.parse(raw) as Partial<Settings>
+      const parsed = JSON.parse(raw) as Record<string, unknown>
       Object.assign(settings, {
         ...settings,
-        ...parsed,
-        aiProviders: { ...settings.aiProviders, ...(parsed.aiProviders ?? {}) },
+        ...(parsed as Partial<Settings>),
+        ...normalizeAi(parsed),
       })
     }
     else await bridge.set(KEY, JSON.stringify(settings))
