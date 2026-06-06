@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { Marked, type Tokens } from 'marked'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const props = defineProps<{ content: string }>()
+const emit = defineEmits<{ scroll: [ratio: number] }>()
+const host = ref<HTMLElement>()
 
 const AUDIO_EXT = ['mp3', 'wav', 'm4a', 'ogg', 'flac']
 const VIDEO_EXT = ['mp4', 'webm', 'mov']
@@ -31,6 +33,22 @@ const md = new Marked({
 
 const html = computed(() => md.parse(props.content, { async: false }) as string)
 
+function onScroll(): void {
+  const el = host.value
+  if (!el) return
+  const max = el.scrollHeight - el.clientHeight
+  emit('scroll', max > 0 ? el.scrollTop / max : 0)
+}
+
+/** 按比例设置滚动位置（0~1），供双栏联动 */
+function setScrollRatio(r: number): void {
+  const el = host.value
+  if (!el) return
+  el.scrollTop = r * (el.scrollHeight - el.clientHeight)
+}
+
+defineExpose({ setScrollRatio })
+
 function onClick(e: MouseEvent): void {
   const a = (e.target as HTMLElement).closest('a')
   if (!a) return
@@ -51,7 +69,7 @@ function onClick(e: MouseEvent): void {
 </script>
 
 <template>
-  <div class="note-preview" @click="onClick" v-html="html" />
+  <div ref="host" class="note-preview" @click="onClick" @scroll="onScroll" v-html="html" />
 </template>
 
 <style scoped lang="scss">

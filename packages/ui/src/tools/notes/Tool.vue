@@ -9,6 +9,7 @@ import { extractTitle } from './title'
 
 const treeRef = ref<InstanceType<typeof NotesTree>>()
 const editorRef = ref<InstanceType<typeof NoteEditor>>()
+const previewRef = ref<InstanceType<typeof NotePreview>>()
 
 // 三栏开关：编辑/预览不允许同时关
 const showTree = ref(true)
@@ -88,6 +89,22 @@ async function insertAttachment(kind: 'image' | 'file'): Promise<void> {
 }
 
 onBeforeUnmount(() => void flush())
+
+// ── 滚动联动：百分比同步 + 来源锁防回环 ──────────────────────────────────────
+let syncSource: 'edit' | 'preview' | null = null
+let syncResetTimer: ReturnType<typeof setTimeout> | null = null
+
+function syncFrom(source: 'edit' | 'preview', ratio: number): void {
+  if (!showEdit.value || !showPreview.value) return // 单栏时不联动
+  if (syncSource && syncSource !== source) return
+  syncSource = source
+  if (source === 'edit') previewRef.value?.setScrollRatio(ratio)
+  else editorRef.value?.setScrollRatio(ratio)
+  if (syncResetTimer) clearTimeout(syncResetTimer)
+  syncResetTimer = setTimeout(() => {
+    syncSource = null
+  }, 150)
+}
 </script>
 
 <template>
@@ -118,8 +135,15 @@ onBeforeUnmount(() => void flush())
           v-model="content"
           :note-id="note.id"
           class="pane"
+          @scroll="syncFrom('edit', $event)"
         />
-        <NotePreview v-show="showPreview" :content="content" class="pane preview" />
+        <NotePreview
+          v-show="showPreview"
+          ref="previewRef"
+          :content="content"
+          class="pane preview"
+          @scroll="syncFrom('preview', $event)"
+        />
       </template>
       <div v-else class="empty">{{ t('notes.empty') }}</div>
     </div>

@@ -5,7 +5,7 @@ import '../monaco-setup'
 import { resolvedTheme } from '../settings'
 
 const props = defineProps<{ modelValue: string; language: string; readOnly?: boolean }>()
-const emit = defineEmits<{ 'update:modelValue': [v: string] }>()
+const emit = defineEmits<{ 'update:modelValue': [v: string]; scroll: [ratio: number] }>()
 
 const host = ref<HTMLElement>()
 let editor: monaco.editor.IStandaloneCodeEditor | null = null
@@ -24,6 +24,11 @@ onMounted(() => {
   editor.onDidChangeModelContent(() => {
     const v = editor?.getValue() ?? ''
     if (v !== props.modelValue) emit('update:modelValue', v)
+  })
+  editor.onDidScrollChange(() => {
+    if (!editor) return
+    const max = editor.getScrollHeight() - editor.getLayoutInfo().height
+    emit('scroll', max > 0 ? editor.getScrollTop() / max : 0)
   })
 })
 
@@ -50,7 +55,14 @@ function insertText(text: string): void {
   editor.focus()
 }
 
-defineExpose({ insertText })
+/** 按比例设置滚动位置（0~1），供双栏联动 */
+function setScrollRatio(r: number): void {
+  if (!editor) return
+  const max = editor.getScrollHeight() - editor.getLayoutInfo().height
+  editor.setScrollTop(Math.max(0, r * max))
+}
+
+defineExpose({ insertText, setScrollRatio })
 
 onBeforeUnmount(() => editor?.dispose())
 </script>

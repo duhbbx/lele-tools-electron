@@ -4,7 +4,7 @@ import type { NoteFile } from '@lele/shared-types'
 import MonacoEditor from '../../components/MonacoEditor.vue'
 
 const props = defineProps<{ modelValue: string; noteId: number }>()
-const emit = defineEmits<{ 'update:modelValue': [v: string] }>()
+const emit = defineEmits<{ 'update:modelValue': [v: string]; scroll: [ratio: number] }>()
 
 const editorRef = ref<InstanceType<typeof MonacoEditor>>()
 
@@ -19,7 +19,11 @@ function insertFileMd(row: NoteFile): void {
   insertText(isMedia ? `![${row.name}](${url})\n` : `[${row.name}](${url})\n`)
 }
 
-defineExpose({ insertText, insertFileMd })
+function setScrollRatio(r: number): void {
+  editorRef.value?.setScrollRatio(r)
+}
+
+defineExpose({ insertText, insertFileMd, setScrollRatio })
 
 /** 粘贴剪贴板里的文件/截图（capture 阶段先于 Monaco 处理） */
 async function onPaste(e: ClipboardEvent): Promise<void> {
@@ -59,6 +63,7 @@ async function onDrop(e: DragEvent): Promise<void> {
       :model-value="modelValue"
       language="markdown"
       @update:model-value="emit('update:modelValue', $event)"
+      @scroll="emit('scroll', $event)"
     />
   </div>
 </template>
