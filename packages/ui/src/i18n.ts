@@ -50,6 +50,19 @@ const dict: Record<string, Record<Locale, string>> = {
   'crm.company': { zh: '公司', en: 'Company' },
   'crm.person': { zh: '个人', en: 'Person' },
   'crm.confirmDelete': { zh: '确认删除?', en: 'Confirm?' },
+  'notes.tree': { zh: '笔记', en: 'Notes' },
+  'notes.newFolder': { zh: '新建文件夹', en: 'New folder' },
+  'notes.newNote': { zh: '新建笔记', en: 'New note' },
+  'notes.untitled': { zh: '无标题', en: 'Untitled' },
+  'notes.empty': { zh: '从左侧选择或新建一篇笔记', en: 'Select or create a note on the left' },
+  'notes.insertImage': { zh: '插入图片', en: 'Insert image' },
+  'notes.insertFile': { zh: '插入文件', en: 'Insert file' },
+  'notes.editPane': { zh: '编辑', en: 'Edit' },
+  'notes.previewPane': { zh: '预览', en: 'Preview' },
+  'notes.saved': { zh: '已保存 ✓', en: 'Saved ✓' },
+  'notes.saving': { zh: '保存中…', en: 'Saving…' },
+  'notes.confirmDelete': { zh: '确认删除?', en: 'Confirm?' },
+  'notes.rename': { zh: '重命名', en: 'Rename' },
 }
 
 export function t(key: string): string {
