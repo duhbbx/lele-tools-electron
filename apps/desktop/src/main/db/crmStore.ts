@@ -205,14 +205,14 @@ export function makeCrmStore(db: Database.Database) {
           conds.push('c.name LIKE ?')
           params.push(`%${f.q}%`)
         }
-        if (f?.clientId) {
+        if (f?.clientId !== undefined) {
           conds.push('c.client_id = ?')
           params.push(f.clientId)
         }
         const rows = db
           .prepare(
             `SELECT c.*, cl.name AS client_name FROM crm_contacts c
-             JOIN crm_clients cl ON cl.id = c.client_id
+             JOIN crm_clients cl ON cl.id = c.client_id AND cl.deleted_at IS NULL
              WHERE ${conds.join(' AND ')} ORDER BY c.name`,
           )
           .all(...params) as Record<string, unknown>[]
@@ -269,7 +269,7 @@ export function makeCrmStore(db: Database.Database) {
           conds.push('p.status = ?')
           params.push(f.status)
         }
-        if (f?.clientId) {
+        if (f?.clientId !== undefined) {
           conds.push('p.client_id = ?')
           params.push(f.clientId)
         }
@@ -278,7 +278,7 @@ export function makeCrmStore(db: Database.Database) {
             `SELECT p.id, p.client_id, p.name, p.status, p.amount_cents, p.end_date,
                     cl.name AS client_name
              FROM crm_projects p
-             JOIN crm_clients cl ON cl.id = p.client_id
+             JOIN crm_clients cl ON cl.id = p.client_id AND cl.deleted_at IS NULL
              WHERE ${conds.join(' AND ')} ORDER BY p.name`,
           )
           .all(...params) as Record<string, unknown>[]

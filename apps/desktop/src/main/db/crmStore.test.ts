@@ -156,4 +156,12 @@ describe('filtered queries', () => {
     expect(store.contacts.listAll()).toHaveLength(1)
     expect(store.projects.listAll()).toHaveLength(1)
   })
+
+  it('对已软删客户新建的子记录不会从 listAll 泄漏', () => {
+    store.clients.remove(cidA)
+    store.contacts.create(cidA, '孤儿联系人')
+    store.projects.create(cidA, '孤儿项目')
+    expect(store.contacts.listAll()).toHaveLength(1)
+    expect(store.projects.listAll()).toHaveLength(1)
+  })
 })
