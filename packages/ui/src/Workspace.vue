@@ -23,6 +23,7 @@ const tabs = ref<TabDesc[]>([])
 const active = ref<string | null>(null)
 /** key → loaded component (filled after async load) */
 const comps = shallowRef<Record<string, Component>>({})
+const navRef = ref<InstanceType<typeof SideNav> | null>(null)
 const showSettings = ref(false)
 const showAi = ref(false)
 
@@ -109,15 +110,20 @@ function reorder(fromKey: string, toKey: string): void {
 
 function onTabRename(tab: TabDesc, newTitle: string): void {
   tab.title = newTitle
+  navRef.value?.refreshCrm?.()
 }
 
-// Exposed for C4: SideNav will call openCrm via @open-crm event binding
+function onTabRemoved(tab: TabDesc): void {
+  close(tab.key)
+  navRef.value?.refreshCrm?.()
+}
+
 defineExpose({ openCrm })
 </script>
 
 <template>
   <div class="workspace" :class="{ 'with-ai': showAi }">
-    <SideNav @open="openTool" />
+    <SideNav ref="navRef" @open="openTool" @open-crm="openCrm" />
     <div class="main">
       <div class="tabbar-row">
         <ToolTabs class="grow" :tabs="tabDisplay" :active="active" @activate="active = $event" @close="close" @reorder="reorder" />
@@ -130,7 +136,7 @@ defineExpose({ openCrm })
             :is="resolveComp(tab)"
             v-bind="tab.kind === 'tool' ? {} : { refId: Number(tab.refId) }"
             @rename="onTabRename(tab, $event)"
-            @removed="close(tab.key)"
+            @removed="onTabRemoved(tab)"
           />
         </div>
       </div>

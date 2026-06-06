@@ -43,6 +43,13 @@ const dict: Record<string, Record<Locale, string>> = {
   'ai.send': { zh: '发送', en: 'Send' },
   'ai.stop': { zh: '停止', en: 'Stop' },
   'ai.notConfigured': { zh: '先在设置里配置 AI 服务商', en: 'Configure an AI provider in Settings first' },
+  'crm.title': { zh: 'CRM', en: 'CRM' },
+  'crm.contacts': { zh: '干系人', en: 'Contacts' },
+  'crm.projects': { zh: '项目', en: 'Projects' },
+  'crm.addClient': { zh: '新建客户', en: 'Add client' },
+  'crm.company': { zh: '公司', en: 'Company' },
+  'crm.person': { zh: '个人', en: 'Person' },
+  'crm.confirmDelete': { zh: '确认删除?', en: 'Confirm?' },
 }
 
 export function t(key: string): string {
