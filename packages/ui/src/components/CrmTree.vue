@@ -52,7 +52,10 @@ async function loadChildren(clientId: number): Promise<void> {
 
 async function refresh(): Promise<void> {
   await loadClients()
-  // Reload children for currently expanded clients
+  // Drop the entire cache so collapsed clients don't keep stale data;
+  // then reload only currently-expanded clients (they'll be fresh).
+  // Collapsed clients will lazy-load on next expand.
+  childCache.value = new Map()
   for (const id of expanded.value) {
     await loadChildren(id)
   }

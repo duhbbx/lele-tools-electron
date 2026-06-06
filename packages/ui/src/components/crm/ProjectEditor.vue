@@ -104,7 +104,7 @@ const addingPayment = ref(false)
 
 async function addPayment(): Promise<void> {
   const cents = yuanToCents(newPayment.amountYuan)
-  if (!cents) return
+  if (cents <= 0) return
   try {
     await window.api?.crm?.payments?.add?.(props.refId, {
       amountCents: cents,
@@ -121,20 +121,42 @@ async function addPayment(): Promise<void> {
   }
 }
 
-async function removePayment(id: number): Promise<void> {
-  try {
-    await window.api?.crm?.payments?.remove?.(id)
-    await loadPayments()
-  } catch (e) {
-    console.warn('[ProjectEditor] removePayment error', e)
-  }
-}
-
 async function loadPayments(): Promise<void> {
   try {
     payments.value = (await window.api?.crm?.payments?.listByProject?.(props.refId)) ?? []
   } catch (e) {
     console.warn('[ProjectEditor] loadPayments error', e)
+  }
+}
+
+// ── payment delete confirm ─────────────────────────────────────────────────────
+const paymentDeleteConfirmId = ref<number | null>(null)
+let paymentDeleteTimer: ReturnType<typeof setTimeout> | null = null
+
+function startPaymentDelete(id: number): void {
+  if (paymentDeleteConfirmId.value === id) {
+    void executePaymentDelete(id)
+    return
+  }
+  if (paymentDeleteTimer !== null) clearTimeout(paymentDeleteTimer)
+  paymentDeleteConfirmId.value = id
+  paymentDeleteTimer = setTimeout(() => {
+    paymentDeleteConfirmId.value = null
+    paymentDeleteTimer = null
+  }, 3000)
+}
+
+async function executePaymentDelete(id: number): Promise<void> {
+  if (paymentDeleteTimer !== null) {
+    clearTimeout(paymentDeleteTimer)
+    paymentDeleteTimer = null
+  }
+  paymentDeleteConfirmId.value = null
+  try {
+    await window.api?.crm?.payments?.remove?.(id)
+    await loadPayments()
+  } catch (e) {
+    console.warn('[ProjectEditor] removePayment error', e)
   }
 }
 
@@ -386,7 +408,12 @@ function formatSize(bytes: number): string {
           <td>{{ pay.paidAt }}</td>
           <td>{{ pay.note }}</td>
           <td>
-            <button type="button" class="icon-btn remove-btn" @click="removePayment(pay.id)">×</button>
+            <button
+              type="button"
+              class="icon-btn remove-btn"
+              :class="{ confirming: paymentDeleteConfirmId === pay.id }"
+              @click="startPaymentDelete(pay.id)"
+            >{{ paymentDeleteConfirmId === pay.id ? '确认?' : '×' }}</button>
           </td>
         </tr>
         <!-- Inline add row -->
@@ -671,6 +698,14 @@ function formatSize(bytes: number): string {
 
     &.remove-btn {
       color: #e55;
+    }
+
+    &.remove-btn.confirming {
+      opacity: 1;
+      font-size: 12px;
+      font-weight: 600;
+      background: color-mix(in srgb, #e55 18%, transparent);
+      padding: 1px 6px;
     }
   }
 }
