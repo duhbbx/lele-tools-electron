@@ -41,6 +41,7 @@ export interface Settings {
   locale: Locale
   theme: 'dark' | 'light' | 'system'
   navWidth: number
+  navCollapsed: boolean
   aiProvider: AiProvider
   aiProviders: Record<AiProvider, AiProviderConfig>
 }
@@ -50,6 +51,7 @@ function defaults(): Settings {
     locale: 'zh',
     theme: 'system',
     navWidth: 240,
+    navCollapsed: false,
     aiProvider: 'deepseek',
     aiProviders: structuredClone(AI_PROVIDER_DEFAULTS),
   }

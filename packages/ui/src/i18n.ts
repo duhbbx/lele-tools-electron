@@ -19,6 +19,8 @@ const dict: Record<string, Record<Locale, string>> = {
   'app.title': { zh: '乐乐的工具箱', en: 'Lele Tools' },
   'nav.search': { zh: '搜索工具…', en: 'Search tools…' },
   'nav.recent': { zh: '最近使用', en: 'Recent' },
+  'nav.collapse': { zh: '收起导航', en: 'Collapse nav' },
+  'nav.expand': { zh: '展开导航', en: 'Expand nav' },
   'welcome.hint': { zh: '从左侧选择一个工具开始', en: 'Pick a tool from the sidebar to start' },
   'tabs.close': { zh: '关闭', en: 'Close' },
   'settings.title': { zh: '设置', en: 'Settings' },

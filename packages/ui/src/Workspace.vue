@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { type Component, computed, onMounted, ref, shallowRef } from 'vue'
 import { locale, t } from './i18n'
+import { settings } from './settings'
 import { toolById } from './tools/index'
 import AiChatPanel from './components/AiChatPanel.vue'
 import SettingsDialog from './components/SettingsDialog.vue'
@@ -73,10 +74,15 @@ function reorder(fromKey: string, toKey: string): void {
 </script>
 
 <template>
-  <div class="workspace" :class="{ 'with-ai': showAi }">
-    <SideNav @open="openTool" />
+  <div class="workspace" :class="{ 'with-ai': showAi, 'nav-collapsed': settings.navCollapsed }">
+    <SideNav v-show="!settings.navCollapsed" @open="openTool" />
     <div class="main">
       <div class="tabbar-row">
+        <button
+          class="btn nav-toggle"
+          :title="t(settings.navCollapsed ? 'nav.expand' : 'nav.collapse')"
+          @click="settings.navCollapsed = !settings.navCollapsed"
+        >{{ settings.navCollapsed ? '▶' : '◀' }}</button>
         <ToolTabs class="grow" :tabs="tabDisplay" :active="active" @activate="active = $event" @close="close" @reorder="reorder" />
         <button class="btn ai-toggle" @click="showAi = !showAi">🤖</button>
       </div>
@@ -99,8 +105,10 @@ function reorder(fromKey: string, toKey: string): void {
   grid-template-rows: minmax(0, 1fr);
   height: 100%;
   &.with-ai { grid-template-columns: 240px 1fr 340px; }
+  &.nav-collapsed { grid-template-columns: 0 1fr; }
+  &.nav-collapsed.with-ai { grid-template-columns: 0 1fr 340px; }
   .main { display: flex; flex-direction: column; min-width: 0; }
-  .tabbar-row { display: flex; align-items: stretch; .grow { flex: 1; min-width: 0; } .ai-toggle { margin: 6px 8px 0; } }
+  .tabbar-row { display: flex; align-items: stretch; .grow { flex: 1; min-width: 0; } .ai-toggle { margin: 6px 8px 0; } .nav-toggle { margin: 6px 0 0 8px; } }
   .body { flex: 1; min-height: 0; overflow: hidden; position: relative; }
   .pane { height: 100%; overflow: hidden; }
   .welcome {
