@@ -24,6 +24,9 @@ onMounted(() => {
     wordWrap: 'on',
     // 中文输入会大量触发全角字符的「歧义 Unicode」黄框误报，全局关闭
     unicodeHighlight: { ambiguousCharacters: false, invisibleCharacters: false },
+    // IME 合成期 Monaco 会把隐藏 textarea 显示出来；a11y 'auto' 时 textarea 装整个模型行，
+    // wordWrap 下锚到首个折行行首且不折行铺开，把前文重复显示成重影。关掉后只写光标前单词。
+    accessibilitySupport: 'off',
   })
   editor.onDidChangeModelContent(() => {
     const v = editor?.getValue() ?? ''
