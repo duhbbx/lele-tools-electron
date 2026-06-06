@@ -58,3 +58,13 @@ describe('project update + payments math source data', () => {
     expect(store.payments.listByProject(pid).map((x) => x.amountCents)).toEqual([1000_00, 2000_00])
   })
 })
+
+describe('soft-delete migration', () => {
+  it('crm 三表有 deleted_at 列，且二次迁移幂等', () => {
+    expect(() => migrate(db)).not.toThrow() // beforeEach 已迁移过一次，这里是第二次
+    for (const table of ['crm_clients', 'crm_contacts', 'crm_projects']) {
+      const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]
+      expect(cols.some((c) => c.name === 'deleted_at'), table).toBe(true)
+    }
+  })
+})

@@ -19,14 +19,16 @@ export function migrate(db: Database.Database): void {
     CREATE TABLE IF NOT EXISTS crm_clients (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL, type TEXT NOT NULL DEFAULT 'company',
-      note TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL
+      note TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL,
+      deleted_at INTEGER
     );
     CREATE TABLE IF NOT EXISTS crm_contacts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       client_id INTEGER NOT NULL REFERENCES crm_clients(id) ON DELETE CASCADE,
       name TEXT NOT NULL, role TEXT NOT NULL DEFAULT '', phone TEXT NOT NULL DEFAULT '',
       wechat TEXT NOT NULL DEFAULT '', email TEXT NOT NULL DEFAULT '',
-      note TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL
+      note TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL,
+      deleted_at INTEGER
     );
     CREATE TABLE IF NOT EXISTS crm_projects (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,7 +40,8 @@ export function migrate(db: Database.Database): void {
       wx_app_id TEXT NOT NULL DEFAULT '', wx_app_secret TEXT NOT NULL DEFAULT '',
       wx_pay_params TEXT NOT NULL DEFAULT '[]',
       amount_cents INTEGER NOT NULL DEFAULT 0, end_date TEXT NOT NULL DEFAULT '',
-      created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+      created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+      deleted_at INTEGER
     );
     CREATE TABLE IF NOT EXISTS crm_payments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -73,4 +76,12 @@ export function migrate(db: Database.Database): void {
       created_at INTEGER NOT NULL
     );
   `)
+
+  // CRM 软删除列：CREATE TABLE IF NOT EXISTS 不会给已存在的老库加列，这里守护式补
+  for (const table of ['crm_clients', 'crm_contacts', 'crm_projects']) {
+    const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]
+    if (!cols.some((c) => c.name === 'deleted_at')) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN deleted_at INTEGER`)
+    }
+  }
 }
