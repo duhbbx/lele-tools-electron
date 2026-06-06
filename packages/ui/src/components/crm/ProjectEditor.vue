@@ -28,6 +28,7 @@ const form = reactive({
 // wxPayParams: { k: string; v: string }[]
 const wxPayRows = ref<{ k: string; v: string }[]>([])
 
+const clientName = ref('')
 const dirty = ref(false)
 const busy = ref(false)
 
@@ -226,6 +227,8 @@ onMounted(async () => {
       return
     }
     fillForm(project)
+    const client = (await window.api?.crm?.clients?.get?.(project.clientId)) ?? null
+    clientName.value = client?.name ?? ''
     await loadPayments()
     await loadFiles()
   } catch (e) {
@@ -305,6 +308,10 @@ function formatSize(bytes: number): string {
     <!-- Section 1: 基本信息 -->
     <h4 class="section-title">基本信息</h4>
 
+    <label class="field">
+      <span>所属客户</span>
+      <span class="readonly-text">{{ clientName }}</span>
+    </label>
     <label class="field">
       <span>名称</span>
       <input v-model="form.name" class="input" type="text" @input="markDirty" />
@@ -516,6 +523,11 @@ function formatSize(bytes: number): string {
     .input {
       flex: 1;
       min-width: 0;
+    }
+
+    .readonly-text {
+      flex: 1;
+      color: var(--fg-dim);
     }
 
     &.field-textarea {

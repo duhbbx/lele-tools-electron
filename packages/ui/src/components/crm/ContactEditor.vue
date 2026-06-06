@@ -15,6 +15,7 @@ const form = reactive({
   note: '',
 })
 
+const clientName = ref('')
 const dirty = ref(false)
 const busy = ref(false)
 
@@ -70,6 +71,8 @@ onMounted(async () => {
       return
     }
     fillForm(contact)
+    const client = (await window.api?.crm?.clients?.get?.(contact.clientId)) ?? null
+    clientName.value = client?.name ?? ''
   } catch (e) {
     console.warn('[ContactEditor] load error', e)
     emit('removed')
@@ -118,6 +121,10 @@ function markDirty(): void {
     </div>
 
     <!-- Fields -->
+    <label class="field">
+      <span>客户</span>
+      <span class="readonly-text">{{ clientName }}</span>
+    </label>
     <label class="field">
       <span>姓名</span>
       <input v-model="form.name" class="input" type="text" @input="markDirty" />
@@ -184,6 +191,11 @@ function markDirty(): void {
 
     .input {
       flex: 1;
+    }
+
+    .readonly-text {
+      flex: 1;
+      color: var(--fg-dim);
     }
 
     &.field-textarea {
