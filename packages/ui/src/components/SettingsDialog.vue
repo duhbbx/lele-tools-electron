@@ -19,6 +19,11 @@ const emit = defineEmits<{ close: [] }>()
 type Section = 'general' | 'ai'
 const section = ref<Section>('general')
 
+const SECTIONS: { id: Section; icon: string; labelKey: string }[] = [
+  { id: 'general', icon: '⚙', labelKey: 'settings.tab.general' },
+  { id: 'ai', icon: '✨', labelKey: 'settings.ai' },
+]
+
 // 正在编辑/选中的配置档 = 当前激活档
 const editingId = computed({
   get: () => settings.activeAiId,
@@ -76,17 +81,24 @@ async function runTest(): Promise<void> {
     <div class="dialog">
       <h3>{{ t('settings.title') }}</h3>
 
-      <div class="tabs">
-        <button class="seg" :class="{ active: section === 'general' }" @click="section = 'general'">
-          {{ t('settings.tab.general') }}
-        </button>
-        <button class="seg" :class="{ active: section === 'ai' }" @click="section = 'ai'">
-          {{ t('settings.ai') }}
-        </button>
-      </div>
+      <div class="cfg">
+        <!-- 左侧纵向分类导航 -->
+        <nav class="cfg-nav">
+          <button
+            v-for="s in SECTIONS"
+            :key="s.id"
+            :class="{ on: section === s.id }"
+            @click="section = s.id"
+          >
+            <span class="ico">{{ s.icon }}</span>
+            <span class="lbl">{{ t(s.labelKey) }}</span>
+          </button>
+        </nav>
 
+        <!-- 右侧内容 -->
+        <section class="cfg-body">
       <!-- 通用 -->
-      <div v-show="section === 'general'" class="body">
+      <template v-if="section === 'general'">
         <label class="field">
           <span>{{ t('settings.language') }}</span>
           <select v-model="settings.locale" class="select">
@@ -102,10 +114,10 @@ async function runTest(): Promise<void> {
             <option value="light">{{ t('settings.theme.light') }}</option>
           </select>
         </label>
-      </div>
+      </template>
 
       <!-- AI 助手：多配置档 + 选择当前 -->
-      <div v-show="section === 'ai'" class="body">
+      <template v-else-if="section === 'ai'">
         <div class="profile-bar">
           <span class="bar-label">{{ t('settings.ai.profile') }}</span>
           <select v-model="editingId" class="select grow">
@@ -156,6 +168,8 @@ async function runTest(): Promise<void> {
             {{ testResult }}
           </p>
         </template>
+      </template>
+        </section>
       </div>
 
       <div class="foot">
@@ -175,8 +189,9 @@ async function runTest(): Promise<void> {
   z-index: 100;
 }
 .dialog {
-  width: 480px;
-  max-height: 82vh;
+  width: 600px;
+  height: 70vh;
+  max-height: 640px;
   display: flex;
   flex-direction: column;
   padding: 18px 20px;
@@ -185,28 +200,51 @@ async function runTest(): Promise<void> {
   background: var(--bg-soft);
   h3 { margin: 0 0 12px; }
 
-  .tabs {
-    display: flex;
-    gap: 4px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 14px;
+  // 左侧纵向分类导航 + 右侧滚动内容（参考 db-tool 设置布局）
+  .cfg {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 140px minmax(0, 1fr);
+    gap: 14px;
+  }
 
-    .seg {
+  .cfg-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    border-right: 1px solid var(--border);
+    padding-right: 10px;
+
+    button {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
       border: 0;
       background: none;
       color: var(--fg-dim);
-      padding: 6px 14px;
       cursor: pointer;
+      border-radius: 6px;
       font-size: 13px;
-      border-bottom: 2px solid transparent;
-      margin-bottom: -1px;
+      text-align: left;
 
-      &:hover { color: var(--fg); }
-      &.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+      &:hover { background: var(--bg-hover); color: var(--fg); }
+      &.on { background: var(--bg-hover); color: var(--accent); font-weight: 600; }
+
+      .ico { width: 16px; text-align: center; }
     }
   }
 
-  .body { overflow-y: auto; }
+  .cfg-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-width: 0;
+    padding-right: 4px;
+  }
 
   .profile-bar {
     display: flex;
