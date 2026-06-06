@@ -29,6 +29,16 @@ const form = reactive({
 const wxPayRows = ref<{ k: string; v: string }[]>([])
 
 const clientName = ref('')
+
+const SECTIONS = [
+  { key: 'basic', label: '基本信息' },
+  { key: 'deploy', label: '部署信息' },
+  { key: 'wx', label: '微信' },
+  { key: 'payments', label: '收款记录' },
+  { key: 'files', label: '合同' },
+] as const
+const activeSection = ref<(typeof SECTIONS)[number]['key']>('basic')
+
 const dirty = ref(false)
 const busy = ref(false)
 
@@ -305,170 +315,181 @@ function formatSize(bytes: number): string {
       >{{ deleteConfirming ? '确认删除?' : '删除项目' }}</button>
     </div>
 
+    <div class="section-tabs">
+      <button
+        v-for="s in SECTIONS"
+        :key="s.key"
+        type="button"
+        class="seg"
+        :class="{ active: activeSection === s.key }"
+        @click="activeSection = s.key"
+      >{{ s.label }}</button>
+    </div>
+
     <!-- Section 1: 基本信息 -->
-    <h4 class="section-title">基本信息</h4>
+    <div v-show="activeSection === 'basic'">
+      <label class="field">
+        <span>所属客户</span>
+        <span class="readonly-text">{{ clientName }}</span>
+      </label>
+      <label class="field">
+        <span>名称</span>
+        <input v-model="form.name" class="input" type="text" @input="markDirty" />
+      </label>
 
-    <label class="field">
-      <span>所属客户</span>
-      <span class="readonly-text">{{ clientName }}</span>
-    </label>
-    <label class="field">
-      <span>名称</span>
-      <input v-model="form.name" class="input" type="text" @input="markDirty" />
-    </label>
+      <label class="field">
+        <span>状态</span>
+        <select v-model="form.status" class="input" @change="markDirty">
+          <option value="active">进行中</option>
+          <option value="done">已完结</option>
+        </select>
+      </label>
 
-    <label class="field">
-      <span>状态</span>
-      <select v-model="form.status" class="input" @change="markDirty">
-        <option value="active">进行中</option>
-        <option value="done">已完结</option>
-      </select>
-    </label>
+      <label class="field field-textarea">
+        <span>情况说明</span>
+        <textarea v-model="form.description" class="input" rows="3" @input="markDirty" />
+      </label>
 
-    <label class="field field-textarea">
-      <span>情况说明</span>
-      <textarea v-model="form.description" class="input" rows="3" @input="markDirty" />
-    </label>
+      <label class="field">
+        <span>项目金额</span>
+        <input v-model="form.amountYuan" class="input" type="text" placeholder="0.00" @input="markDirty" />
+      </label>
 
-    <label class="field">
-      <span>项目金额</span>
-      <input v-model="form.amountYuan" class="input" type="text" placeholder="0.00" @input="markDirty" />
-    </label>
-
-    <label class="field">
-      <span>结束时间</span>
-      <input v-model="form.endDate" class="input" type="date" @input="markDirty" />
-    </label>
+      <label class="field">
+        <span>结束时间</span>
+        <input v-model="form.endDate" class="input" type="date" @input="markDirty" />
+      </label>
+    </div>
 
     <!-- Section 2: 部署信息 -->
-    <h4 class="section-title">部署信息</h4>
+    <div v-show="activeSection === 'deploy'">
+      <label class="field">
+        <span>服务器地址</span>
+        <input v-model="form.serverAddr" class="input" type="text" @input="markDirty" />
+      </label>
 
-    <label class="field">
-      <span>服务器地址</span>
-      <input v-model="form.serverAddr" class="input" type="text" @input="markDirty" />
-    </label>
+      <label class="field">
+        <span>域名</span>
+        <input v-model="form.domain" class="input" type="text" @input="markDirty" />
+      </label>
 
-    <label class="field">
-      <span>域名</span>
-      <input v-model="form.domain" class="input" type="text" @input="markDirty" />
-    </label>
+      <label class="field">
+        <span>后台访问地址</span>
+        <input v-model="form.adminUrl" class="input" type="text" @input="markDirty" />
+      </label>
 
-    <label class="field">
-      <span>后台访问地址</span>
-      <input v-model="form.adminUrl" class="input" type="text" @input="markDirty" />
-    </label>
+      <label class="field">
+        <span>访问用户</span>
+        <input v-model="form.adminUser" class="input" type="text" @input="markDirty" />
+      </label>
 
-    <label class="field">
-      <span>访问用户</span>
-      <input v-model="form.adminUser" class="input" type="text" @input="markDirty" />
-    </label>
-
-    <label class="field">
-      <span>访问密码</span>
-      <SecretInput v-model="form.adminPass" @update:model-value="markDirty" />
-    </label>
+      <label class="field">
+        <span>访问密码</span>
+        <SecretInput v-model="form.adminPass" @update:model-value="markDirty" />
+      </label>
+    </div>
 
     <!-- Section 3: 微信 -->
-    <h4 class="section-title">微信</h4>
+    <div v-show="activeSection === 'wx'">
+      <label class="field">
+        <span>appId</span>
+        <input v-model="form.wxAppId" class="input" type="text" @input="markDirty" />
+      </label>
 
-    <label class="field">
-      <span>appId</span>
-      <input v-model="form.wxAppId" class="input" type="text" @input="markDirty" />
-    </label>
+      <label class="field">
+        <span>appSecret</span>
+        <SecretInput v-model="form.wxAppSecret" @update:model-value="markDirty" />
+      </label>
 
-    <label class="field">
-      <span>appSecret</span>
-      <SecretInput v-model="form.wxAppSecret" @update:model-value="markDirty" />
-    </label>
-
-    <div class="wx-pay-params">
-      <div class="wx-pay-title">支付参数</div>
-      <div v-for="(row, idx) in wxPayRows" :key="idx" class="wx-pay-row">
-        <input
-          v-model="row.k"
-          class="input wx-key-input"
-          type="text"
-          placeholder="参数名"
-          @input="markDirty"
-        />
-        <SecretInput v-model="row.v" @update:model-value="markDirty" />
-        <button type="button" class="icon-btn remove-btn" title="删除" @click="removeWxPayRow(idx)">×</button>
+      <div class="wx-pay-params">
+        <div class="wx-pay-title">支付参数</div>
+        <div v-for="(row, idx) in wxPayRows" :key="idx" class="wx-pay-row">
+          <input
+            v-model="row.k"
+            class="input wx-key-input"
+            type="text"
+            placeholder="参数名"
+            @input="markDirty"
+          />
+          <SecretInput v-model="row.v" @update:model-value="markDirty" />
+          <button type="button" class="icon-btn remove-btn" title="删除" @click="removeWxPayRow(idx)">×</button>
+        </div>
+        <button type="button" class="btn btn-add" @click="addWxPayRow">＋ 添加参数</button>
       </div>
-      <button type="button" class="btn btn-add" @click="addWxPayRow">＋ 添加参数</button>
     </div>
 
     <!-- Section 4: 收款记录 -->
-    <h4 class="section-title">收款记录</h4>
+    <div v-show="activeSection === 'payments'">
+      <table class="payments-table">
+        <thead>
+          <tr>
+            <th>金额 (元)</th>
+            <th>日期</th>
+            <th>备注</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="pay in payments" :key="pay.id">
+            <td>{{ centsToYuan(pay.amountCents) }}</td>
+            <td>{{ pay.paidAt }}</td>
+            <td>{{ pay.note }}</td>
+            <td>
+              <button
+                type="button"
+                class="icon-btn remove-btn"
+                :class="{ confirming: paymentDeleteConfirmId === pay.id }"
+                @click="startPaymentDelete(pay.id)"
+              >{{ paymentDeleteConfirmId === pay.id ? '确认?' : '×' }}</button>
+            </td>
+          </tr>
+          <!-- Inline add row -->
+          <tr v-if="addingPayment">
+            <td>
+              <input v-model="newPayment.amountYuan" class="input cell-input" type="text" placeholder="0.00" />
+            </td>
+            <td>
+              <input v-model="newPayment.paidAt" class="input cell-input" type="date" />
+            </td>
+            <td>
+              <input v-model="newPayment.note" class="input cell-input" type="text" placeholder="备注" />
+            </td>
+            <td>
+              <button type="button" class="btn btn-primary btn-sm" @click="addPayment">确认</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
-    <table class="payments-table">
-      <thead>
-        <tr>
-          <th>金额 (元)</th>
-          <th>日期</th>
-          <th>备注</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="pay in payments" :key="pay.id">
-          <td>{{ centsToYuan(pay.amountCents) }}</td>
-          <td>{{ pay.paidAt }}</td>
-          <td>{{ pay.note }}</td>
-          <td>
-            <button
-              type="button"
-              class="icon-btn remove-btn"
-              :class="{ confirming: paymentDeleteConfirmId === pay.id }"
-              @click="startPaymentDelete(pay.id)"
-            >{{ paymentDeleteConfirmId === pay.id ? '确认?' : '×' }}</button>
-          </td>
-        </tr>
-        <!-- Inline add row -->
-        <tr v-if="addingPayment">
-          <td>
-            <input v-model="newPayment.amountYuan" class="input cell-input" type="text" placeholder="0.00" />
-          </td>
-          <td>
-            <input v-model="newPayment.paidAt" class="input cell-input" type="date" />
-          </td>
-          <td>
-            <input v-model="newPayment.note" class="input cell-input" type="text" placeholder="备注" />
-          </td>
-          <td>
-            <button type="button" class="btn btn-primary btn-sm" @click="addPayment">确认</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+      <button v-if="!addingPayment" type="button" class="btn btn-add" @click="addingPayment = true">＋ 添加收款</button>
 
-    <button v-if="!addingPayment" type="button" class="btn btn-add" @click="addingPayment = true">＋ 添加收款</button>
-
-    <div class="payment-summary">
-      <span>已收合计 ¥{{ centsToYuan(totalPaidCents) }}</span>
-      <span class="divider">／</span>
-      <span :class="{ error: unpaidCents < 0 }">未收 ¥{{ centsToYuan(unpaidCents) }}</span>
+      <div class="payment-summary">
+        <span>已收合计 ¥{{ centsToYuan(totalPaidCents) }}</span>
+        <span class="divider">／</span>
+        <span :class="{ error: unpaidCents < 0 }">未收 ¥{{ centsToYuan(unpaidCents) }}</span>
+      </div>
     </div>
 
     <!-- Section 5: 合同 -->
-    <h4 class="section-title">合同</h4>
-
-    <div v-if="files.length > 0" class="files-list">
-      <div v-for="file in files" :key="file.id" class="file-row">
-        <span class="file-name">{{ file.name }}</span>
-        <span class="file-meta">{{ formatSize(file.size) }} KB</span>
-        <span class="file-meta">{{ formatDate(file.uploadedAt) }}</span>
-        <button type="button" class="btn btn-sm" @click="openFile(file.id)">打开</button>
-        <button
-          type="button"
-          class="btn btn-sm btn-danger"
-          :class="{ confirming: fileDeleteConfirmId === file.id }"
-          @click="startFileDelete(file.id)"
-        >{{ fileDeleteConfirmId === file.id ? '确认?' : '×' }}</button>
+    <div v-show="activeSection === 'files'">
+      <div v-if="files.length > 0" class="files-list">
+        <div v-for="file in files" :key="file.id" class="file-row">
+          <span class="file-name">{{ file.name }}</span>
+          <span class="file-meta">{{ formatSize(file.size) }} KB</span>
+          <span class="file-meta">{{ formatDate(file.uploadedAt) }}</span>
+          <button type="button" class="btn btn-sm" @click="openFile(file.id)">打开</button>
+          <button
+            type="button"
+            class="btn btn-sm btn-danger"
+            :class="{ confirming: fileDeleteConfirmId === file.id }"
+            @click="startFileDelete(file.id)"
+          >{{ fileDeleteConfirmId === file.id ? '确认?' : '×' }}</button>
+        </div>
       </div>
-    </div>
-    <p v-else class="empty-hint">暂无合同</p>
+      <p v-else class="empty-hint">暂无合同</p>
 
-    <button type="button" class="btn btn-add" @click="pickFile">上传合同</button>
+      <button type="button" class="btn btn-add" @click="pickFile">上传合同</button>
+    </div>
   </div>
 </template>
 
@@ -496,15 +517,30 @@ function formatSize(bytes: number): string {
     }
   }
 
-  .section-title {
-    margin: 16px 0 8px;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--fg-dim);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+  .section-tabs {
+    display: flex;
+    gap: 4px;
+    margin: 10px 0 12px;
     border-bottom: 1px solid var(--border);
-    padding-bottom: 4px;
+
+    .seg {
+      border: 0;
+      background: none;
+      color: var(--fg-dim);
+      padding: 6px 12px;
+      cursor: pointer;
+      font-size: 13px;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+
+      &:hover { color: var(--fg); }
+
+      &.active {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+        font-weight: 600;
+      }
+    }
   }
 
   .field {
