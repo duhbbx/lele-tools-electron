@@ -74,6 +74,7 @@ const api: WindowApi = {
     },
     list: () => ipcRenderer.invoke('notes:list'),
     search: (query: string) => ipcRenderer.invoke('notes:search', query),
+    exportPdf: (title: string, html: string, watermark: string) => ipcRenderer.invoke('notes:exportPdf', title, html, watermark),
     get: (id: number) => ipcRenderer.invoke('notes:get', id),
     create: (folderId: number | null) => ipcRenderer.invoke('notes:create', folderId),
     update: (id: number, content: string, title: string) =>

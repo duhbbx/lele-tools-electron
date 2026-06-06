@@ -147,6 +147,8 @@ export interface NotesBridge {
   list(): Promise<NoteListItem[]>
   /** 标题+全文 LIKE 搜索 */
   search(query: string): Promise<NoteListItem[]>
+  /** 导出当前笔记为 PDF；watermark 空串=不加水印；取消返回 null，成功返回保存路径 */
+  exportPdf(title: string, html: string, watermark: string): Promise<string | null>
   get(id: number): Promise<Note | null>
   /** 新建空笔记，返回 id */
   create(folderId: number | null): Promise<number>

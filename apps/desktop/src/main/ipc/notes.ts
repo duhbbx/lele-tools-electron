@@ -1,7 +1,7 @@
 import { copyFileSync, existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { basename, extname, join, relative, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { app, dialog, ipcMain, net, protocol, shell } from 'electron'
+import { BrowserWindow, app, dialog, ipcMain, net, protocol, shell } from 'electron'
 import { makeNotesStore } from '../db/notesStore'
 import { getDb } from '../db/sqlite'
 
@@ -51,6 +51,35 @@ function storeFile(
   const storedPath = relative(app.getPath('userData'), dest)
   const id = s().files.add(noteId, { name: destName, storedPath, mime, size })
   return s().files.get(id)
+}
+
+const PDF_STYLE = `
+  body { font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+         color: #2b2b33; line-height: 1.7; font-size: 14px; margin: 24px 32px; }
+  h1 { font-size: 1.5em; border-bottom: 1px solid #d9d9e0; padding-bottom: .25em; }
+  h2 { font-size: 1.25em; }
+  img, video { max-width: 100%; }
+  code { background: #f2f2f5; border: 1px solid #d9d9e0; border-radius: 4px; padding: 1px 5px; font-size: .9em; }
+  pre { background: #f2f2f5; border: 1px solid #d9d9e0; border-radius: 6px; padding: 10px 12px; overflow-x: auto; }
+  pre code { background: none; border: none; padding: 0; }
+  blockquote { margin: .6em 0; padding: 2px 12px; border-left: 3px solid #3b6fd4; color: #71717c; }
+  table { border-collapse: collapse; } th, td { border: 1px solid #d9d9e0; padding: 4px 10px; }
+  .watermark { position: fixed; inset: -20%; display: flex; flex-wrap: wrap; gap: 90px;
+               align-items: center; justify-content: center; pointer-events: none;
+               transform: rotate(-30deg); opacity: .12; z-index: 9999; }
+  .watermark span { font-size: 26px; color: #000; white-space: nowrap; }
+`
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&"'<>]/g, (c) => ({ '&': '&amp;', '"': '&quot;', "'": '&#39;', '<': '&lt;', '>': '&gt;' })[c] as string)
+}
+
+/** 包成可打印的完整 HTML 文档；watermark 非空时加平铺斜排水印（fixed 元素打印时每页重复） */
+function buildPdfHtml(title: string, bodyHtml: string, watermark: string): string {
+  const wm = watermark
+    ? `<div class="watermark">${Array.from({ length: 24 }, () => `<span>${escapeHtml(watermark)}</span>`).join('')}</div>`
+    : ''
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>${PDF_STYLE}</style></head><body>${wm}${bodyHtml}</body></html>`
 }
 
 /** 必须在 app ready 之前调用：让 notes-file:// 可被 <img>/<audio>/<video>/fetch 使用 */
@@ -136,5 +165,28 @@ export function registerNotesIpc(): void {
     const row = s().files.get(id)
     if (!row) return
     await shell.openPath(join(app.getPath('userData'), row.storedPath))
+  })
+
+  ipcMain.handle('notes:exportPdf', async (_e, title: string, html: string, watermark: string) => {
+    const safeName = (title || '笔记').replace(/[\\/:*?"<>|]/g, '_')
+    const result = await dialog.showSaveDialog({
+      defaultPath: `${safeName}.pdf`,
+      filters: [{ name: 'PDF', extensions: ['pdf'] }],
+    })
+    if (result.canceled || !result.filePath) return null
+    const tmp = join(app.getPath('temp'), `lele-note-${Date.now()}.html`)
+    writeFileSync(tmp, buildPdfHtml(title, html, watermark))
+    const win = new BrowserWindow({ show: false, webPreferences: { sandbox: true } })
+    try {
+      await win.loadFile(tmp)
+      // did-finish-load 后再等一拍，让 notes-file:// 图片完成解码
+      await new Promise((r) => setTimeout(r, 300))
+      const pdf = await win.webContents.printToPDF({ printBackground: true })
+      writeFileSync(result.filePath, pdf)
+      return result.filePath
+    } finally {
+      win.destroy()
+      rmSync(tmp, { force: true })
+    }
   })
 }
