@@ -42,6 +42,16 @@ watch(
 )
 watch(resolvedTheme, (m) => monaco.editor.setTheme(m === 'dark' ? 'vs-dark' : 'vs'))
 
+/** 在光标处插入文本（无光标则插到开头）；供工具层做「插入图片/文件」 */
+function insertText(text: string): void {
+  if (!editor) return
+  const sel = editor.getSelection() ?? new monaco.Selection(1, 1, 1, 1)
+  editor.executeEdits('insert', [{ range: sel, text, forceMoveMarkers: true }])
+  editor.focus()
+}
+
+defineExpose({ insertText })
+
 onBeforeUnmount(() => editor?.dispose())
 </script>
 
