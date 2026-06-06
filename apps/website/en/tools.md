@@ -1,6 +1,6 @@
 # Tools
 
-15 tools, organized by category. Each tool opens in its own tab — state is fully independent.
+16 tools, organized by category. Each tool opens in its own tab — state is fully independent.
 
 ## Encoding & Formatting
 
@@ -28,6 +28,12 @@
 | UUID Generator | Bulk-generate UUID v4 values with one-click copy |
 | QR Code Generator | Turn any text or URL into a QR code; adjustable error-correction level and size; PNG download |
 
+## Dev Collaboration
+
+| Tool | Description |
+|------|-------------|
+| Issue Mover | Move issues from other repos into your own in bulk |
+
 ## Time
 
 | Tool | Description |
@@ -41,3 +47,7 @@
 |------|-------------|
 | Color Tools | Convert between HEX, RGB, and HSL with a live color swatch preview |
 | HTTP Status Codes | Quick-reference table of HTTP status codes with search |
+
+## CRM Module
+
+A built-in local CRM designed for freelancers and small teams. Manage clients, stakeholders, and projects in a three-level tree; each project supports custom fields like deployment URLs and WeChat parameters. Payment entries and contract files are stored alongside project data, with automatic cleanup on deletion. Everything lives in a local SQLite database — no cloud sync, full privacy control.
