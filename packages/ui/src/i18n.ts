@@ -64,6 +64,12 @@ const dict: Record<string, Record<Locale, string>> = {
   'notes.confirmDelete': { zh: '确认删除?', en: 'Confirm?' },
   'notes.rename': { zh: '重命名', en: 'Rename' },
   'notes.search': { zh: '搜索笔记…', en: 'Search notes…' },
+  'notes.exportPdf': { zh: '导出 PDF', en: 'Export PDF' },
+  'notes.watermark': { zh: '水印', en: 'Watermark' },
+  'notes.watermarkText': { zh: '水印文字', en: 'Watermark text' },
+  'notes.export': { zh: '导出', en: 'Export' },
+  'notes.cancel': { zh: '取消', en: 'Cancel' },
+  'notes.exported': { zh: '已导出 ✓', en: 'Exported ✓' },
 }
 
 export function t(key: string): string {

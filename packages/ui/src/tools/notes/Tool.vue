@@ -88,7 +88,10 @@ async function insertAttachment(kind: 'image' | 'file'): Promise<void> {
   if (row) editorRef.value?.insertFileMd(row)
 }
 
-onBeforeUnmount(() => void flush())
+onBeforeUnmount(() => {
+  if (syncResetTimer) clearTimeout(syncResetTimer)
+  void flush()
+})
 
 // ── 滚动联动：百分比同步 + 来源锁防回环 ──────────────────────────────────────
 let syncSource: 'edit' | 'preview' | null = null
@@ -105,6 +108,29 @@ function syncFrom(source: 'edit' | 'preview', ratio: number): void {
     syncSource = null
   }, 150)
 }
+
+// ── PDF 导出 ─────────────────────────────────────────────────────────────────
+const showExport = ref(false)
+const watermarkOn = ref(localStorage.getItem('notes.watermarkOn') === '1')
+const watermarkText = ref(localStorage.getItem('notes.watermarkText') ?? '')
+const exportMsg = ref('')
+
+async function doExport(): Promise<void> {
+  if (!note.value) return
+  showExport.value = false
+  localStorage.setItem('notes.watermarkOn', watermarkOn.value ? '1' : '0')
+  localStorage.setItem('notes.watermarkText', watermarkText.value)
+  await flush()
+  const html = previewRef.value?.getHtml() ?? ''
+  const wm = watermarkOn.value ? watermarkText.value.trim() : ''
+  const path = await window.api?.notes?.exportPdf?.(note.value.title || t('notes.untitled'), html, wm)
+  if (path) {
+    exportMsg.value = t('notes.exported')
+    setTimeout(() => {
+      exportMsg.value = ''
+    }, 3000)
+  }
+}
 </script>
 
 <template>
@@ -113,8 +139,25 @@ function syncFrom(source: 'edit' | 'preview', ratio: number): void {
       <button class="btn" :class="{ primary: showTree }" :title="t('notes.tree')" @click="showTree = !showTree">🗂</button>
       <button class="btn" :disabled="!note || !showEdit" @click="insertAttachment('image')">{{ t('notes.insertImage') }}</button>
       <button class="btn" :disabled="!note || !showEdit" @click="insertAttachment('file')">{{ t('notes.insertFile') }}</button>
+      <span class="export-wrap">
+        <button class="btn" :disabled="!note" @click="showExport = !showExport">{{ t('notes.exportPdf') }}</button>
+        <div v-if="showExport" class="export-pop">
+          <label class="wm-row"><input v-model="watermarkOn" type="checkbox" /> {{ t('notes.watermark') }}</label>
+          <input
+            v-if="watermarkOn"
+            v-model="watermarkText"
+            class="wm-input"
+            :placeholder="t('notes.watermarkText')"
+            @keydown.enter="doExport"
+          />
+          <div class="wm-actions">
+            <button class="btn primary" @click="doExport">{{ t('notes.export') }}</button>
+            <button class="btn" @click="showExport = false">{{ t('notes.cancel') }}</button>
+          </div>
+        </div>
+      </span>
       <span class="grow" />
-      <span class="save-state">{{ saveState === 'saving' ? t('notes.saving') : saveState === 'saved' ? t('notes.saved') : '' }}</span>
+      <span class="save-state">{{ exportMsg || (saveState === 'saving' ? t('notes.saving') : saveState === 'saved' ? t('notes.saved') : '') }}</span>
       <button class="btn" :class="{ primary: showEdit }" @click="togglePane('edit')">{{ t('notes.editPane') }}</button>
       <button class="btn" :class="{ primary: showPreview }" @click="togglePane('preview')">{{ t('notes.previewPane') }}</button>
     </div>
@@ -152,6 +195,21 @@ function syncFrom(source: 'edit' | 'preview', ratio: number): void {
 
 <style scoped lang="scss">
 .notes-tool {
+  .export-wrap { position: relative; }
+  .export-pop {
+    position: absolute; top: calc(100% + 6px); left: 0; z-index: 10;
+    background: var(--bg-soft); border: 1px solid var(--border); border-radius: 6px;
+    padding: 10px; display: flex; flex-direction: column; gap: 8px; min-width: 200px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    .wm-row { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+    .wm-input {
+      font-size: 12px; padding: 3px 6px; border: 1px solid var(--border); border-radius: 4px;
+      background: var(--bg); color: var(--fg); outline: none;
+      &:focus { border-color: var(--accent); }
+    }
+    .wm-actions { display: flex; gap: 6px; justify-content: flex-end; }
+  }
+
   .save-state {
     font-size: 12px;
     color: var(--fg-dim);

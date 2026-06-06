@@ -44,10 +44,14 @@ function onScroll(): void {
 function setScrollRatio(r: number): void {
   const el = host.value
   if (!el) return
-  el.scrollTop = r * (el.scrollHeight - el.clientHeight)
+  el.scrollTop = Math.max(0, r * (el.scrollHeight - el.clientHeight))
 }
 
-defineExpose({ setScrollRatio })
+function getHtml(): string {
+  return html.value
+}
+
+defineExpose({ setScrollRatio, getHtml })
 
 function onClick(e: MouseEvent): void {
   const a = (e.target as HTMLElement).closest('a')

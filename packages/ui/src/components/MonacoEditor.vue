@@ -20,6 +20,7 @@ onMounted(() => {
     readOnly: props.readOnly ?? false,
     fontSize: 13,
     scrollBeyondLastLine: false,
+    smoothScrolling: false,
   })
   editor.onDidChangeModelContent(() => {
     const v = editor?.getValue() ?? ''
