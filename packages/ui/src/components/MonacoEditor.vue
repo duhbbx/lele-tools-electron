@@ -21,6 +21,9 @@ onMounted(() => {
     fontSize: 13,
     scrollBeyondLastLine: false,
     smoothScrolling: false,
+    wordWrap: 'on',
+    // 中文输入会大量触发全角字符的「歧义 Unicode」黄框误报，全局关闭
+    unicodeHighlight: { ambiguousCharacters: false, invisibleCharacters: false },
   })
   editor.onDidChangeModelContent(() => {
     const v = editor?.getValue() ?? ''
