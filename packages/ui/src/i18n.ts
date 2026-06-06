@@ -63,6 +63,7 @@ const dict: Record<string, Record<Locale, string>> = {
   'notes.saving': { zh: '保存中…', en: 'Saving…' },
   'notes.confirmDelete': { zh: '确认删除?', en: 'Confirm?' },
   'notes.rename': { zh: '重命名', en: 'Rename' },
+  'notes.search': { zh: '搜索笔记…', en: 'Search notes…' },
 }
 
 export function t(key: string): string {

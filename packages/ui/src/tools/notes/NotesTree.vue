@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { NoteFolder, NoteListItem } from '@lele/shared-types'
 import { t } from '../../i18n'
 
@@ -23,6 +23,31 @@ const renameText = ref('')
 const pendingDelete = ref<string | null>(null)
 const deleteTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
+// ── 搜索 ─────────────────────────────────────────────────────────────────────
+const searchText = ref('')
+const searchResults = ref<NoteListItem[] | null>(null) // null = 未在搜索
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+
+watch(searchText, () => {
+  if (searchTimer) clearTimeout(searchTimer)
+  const q = searchText.value.trim()
+  if (!q) {
+    searchResults.value = null
+    return
+  }
+  searchTimer = setTimeout(async () => {
+    try {
+      searchResults.value = (await window.api?.notes?.search?.(q)) ?? []
+    } catch (e) {
+      console.warn('[NotesTree] search error', e)
+    }
+  }, 250)
+})
+
+function clearSearch(): void {
+  searchText.value = ''
+}
+
 // ── data ───────────────────────────────────────────────────────────────────
 async function refresh(): Promise<void> {
   try {
@@ -30,6 +55,9 @@ async function refresh(): Promise<void> {
     notes.value = (await window.api?.notes?.list?.()) ?? []
   } catch (e) {
     console.warn('[NotesTree] refresh error', e)
+  }
+  if (searchResults.value !== null && searchText.value.trim()) {
+    searchResults.value = (await window.api?.notes?.search?.(searchText.value.trim())) ?? []
   }
 }
 void refresh()
@@ -45,6 +73,9 @@ interface Row {
 }
 
 const rows = computed<Row[]>(() => {
+  if (searchResults.value !== null) {
+    return searchResults.value.map((n) => ({ kind: 'note' as const, id: n.id, depth: 0, label: n.title }))
+  }
   const byParent = new Map<number | null, NoteFolder[]>()
   for (const f of folders.value) {
     const list = byParent.get(f.parentId) ?? []
@@ -217,6 +248,16 @@ async function onDrop(e: DragEvent, targetFolderId: number | null): Promise<void
       <button class="btn-icon" :title="t('notes.newNote')" @click="addNote(null)">📄+</button>
     </div>
 
+    <div class="search-box">
+      <input
+        v-model="searchText"
+        class="inline-input"
+        :placeholder="t('notes.search')"
+        @keydown.esc="clearSearch"
+      />
+      <button v-if="searchText" class="btn-icon" @click="clearSearch">✕</button>
+    </div>
+
     <!-- 根级新建文件夹表单 -->
     <div v-if="addingFolderIn === null" class="inline-form">
       <input
@@ -331,6 +372,13 @@ async function onDrop(e: DragEvent, targetFolderId: number | null): Promise<void
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }
+  }
+
+  .search-box {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 10px 6px;
   }
 
   .inline-form {
