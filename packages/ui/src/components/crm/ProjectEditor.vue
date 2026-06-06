@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import type { CrmFile, CrmPayment, CrmProject } from '@lele/shared-types'
+import type { CrmFile, CrmPayment, CrmPaymentMethod, CrmProject } from '@lele/shared-types'
 import { centsToYuan, yuanToCents } from '../../money'
+import { PAYMENT_METHODS, paymentMethodLabel } from './options'
 import SecretInput from './SecretInput.vue'
 
 const props = defineProps<{ refId: number }>()
@@ -13,6 +14,7 @@ const form = reactive({
   status: 'active' as 'active' | 'done',
   description: '',
   amountYuan: '0.00',
+  shareYuan: '0.00',
   endDate: '',
   // deploy info
   serverAddr: '',
@@ -81,6 +83,7 @@ function fillForm(p: CrmProject): void {
   form.status = p.status
   form.description = p.description
   form.amountYuan = centsToYuan(p.amountCents)
+  form.shareYuan = centsToYuan(p.shareCents)
   form.endDate = p.endDate
   form.serverAddr = p.serverAddr
   form.domain = p.domain
@@ -110,7 +113,7 @@ const amountCentsFromForm = computed(() => yuanToCents(form.amountYuan))
 const unpaidCents = computed(() => amountCentsFromForm.value - totalPaidCents.value)
 
 // new payment row
-const newPayment = reactive({ amountYuan: '', paidAt: '', note: '' })
+const newPayment = reactive({ amountYuan: '', paidAt: '', method: '' as CrmPaymentMethod, note: '' })
 const addingPayment = ref(false)
 
 async function addPayment(): Promise<void> {
@@ -120,10 +123,12 @@ async function addPayment(): Promise<void> {
     await window.api?.crm?.payments?.add?.(props.refId, {
       amountCents: cents,
       paidAt: newPayment.paidAt,
+      method: newPayment.method,
       note: newPayment.note,
     })
     newPayment.amountYuan = ''
     newPayment.paidAt = ''
+    newPayment.method = ''
     newPayment.note = ''
     addingPayment.value = false
     await loadPayments()
@@ -257,6 +262,7 @@ async function save(): Promise<void> {
       status: form.status,
       description: form.description,
       amountCents: yuanToCents(form.amountYuan),
+      shareCents: yuanToCents(form.shareYuan),
       endDate: form.endDate,
       serverAddr: form.serverAddr,
       domain: form.domain,
@@ -356,6 +362,11 @@ function formatSize(bytes: number): string {
       </label>
 
       <label class="field">
+        <span>分润金额</span>
+        <input v-model="form.shareYuan" class="input" type="text" placeholder="0.00" @input="markDirty" />
+      </label>
+
+      <label class="field">
         <span>结束时间</span>
         <input v-model="form.endDate" class="input" type="date" @input="markDirty" />
       </label>
@@ -425,6 +436,7 @@ function formatSize(bytes: number): string {
           <tr>
             <th>金额 (元)</th>
             <th>日期</th>
+            <th>方式</th>
             <th>备注</th>
             <th></th>
           </tr>
@@ -433,6 +445,7 @@ function formatSize(bytes: number): string {
           <tr v-for="pay in payments" :key="pay.id">
             <td>{{ centsToYuan(pay.amountCents) }}</td>
             <td>{{ pay.paidAt }}</td>
+            <td>{{ paymentMethodLabel(pay.method) }}</td>
             <td>{{ pay.note }}</td>
             <td>
               <button
@@ -450,6 +463,12 @@ function formatSize(bytes: number): string {
             </td>
             <td>
               <input v-model="newPayment.paidAt" class="input cell-input" type="date" />
+            </td>
+            <td>
+              <select v-model="newPayment.method" class="input cell-input">
+                <option value="">—</option>
+                <option v-for="m in PAYMENT_METHODS" :key="m" :value="m">{{ paymentMethodLabel(m) }}</option>
+              </select>
             </td>
             <td>
               <input v-model="newPayment.note" class="input cell-input" type="text" placeholder="备注" />

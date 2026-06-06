@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import type { CrmClient, CrmProjectListItem } from '@lele/shared-types'
 import { t } from '../../i18n'
 import { centsToYuan } from '../../money'
@@ -50,6 +50,10 @@ onMounted(() => {
   void loadClients()
 })
 
+// 合计行：对当前筛选结果求和
+const totalAmountCents = computed(() => rows.value.reduce((sum, r) => sum + r.amountCents, 0))
+const totalShareCents = computed(() => rows.value.reduce((sum, r) => sum + r.shareCents, 0))
+
 const { confirmingId, trigger } = useConfirmDelete(async (id) => {
   try {
     await window.api?.crm?.projects?.remove?.(id)
@@ -85,6 +89,7 @@ const { confirmingId, trigger } = useConfirmDelete(async (id) => {
             <th>{{ t('crm.client') }}</th>
             <th>{{ t('crm.status') }}</th>
             <th>{{ t('crm.amount') }}</th>
+            <th>{{ t('crm.shareAmount') }}</th>
             <th>{{ t('crm.endDate') }}</th>
             <th>{{ t('crm.actions') }}</th>
           </tr>
@@ -95,6 +100,7 @@ const { confirmingId, trigger } = useConfirmDelete(async (id) => {
             <td>{{ r.clientName }}</td>
             <td>{{ r.status === 'active' ? t('crm.statusActive') : t('crm.statusDone') }}</td>
             <td>¥{{ centsToYuan(r.amountCents) }}</td>
+            <td>¥{{ centsToYuan(r.shareCents) }}</td>
             <td>{{ r.endDate }}</td>
             <td class="ops">
               <button class="link" @click="emit('open', r.id, r.name)">{{ t('crm.detail') }}</button>
@@ -106,6 +112,17 @@ const { confirmingId, trigger } = useConfirmDelete(async (id) => {
             </td>
           </tr>
         </tbody>
+        <tfoot v-if="rows.length">
+          <tr class="total-row">
+            <td>{{ t('crm.total') }}</td>
+            <td></td>
+            <td></td>
+            <td>¥{{ centsToYuan(totalAmountCents) }}</td>
+            <td>¥{{ centsToYuan(totalShareCents) }}</td>
+            <td></td>
+            <td></td>
+          </tr>
+        </tfoot>
       </table>
       <div v-if="!rows.length" class="empty">{{ t('crm.empty') }}</div>
     </div>
