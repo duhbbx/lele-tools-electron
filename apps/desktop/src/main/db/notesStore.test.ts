@@ -93,5 +93,6 @@ describe('notes search', () => {
     expect(store.notes.search('100%').map((n) => n.id)).toEqual([b])
     expect(store.notes.search('%').map((n) => n.id)).toEqual([b]) // 字面 % 只在 b
     expect(store.notes.search('不存在的词')).toHaveLength(0)
+    expect(store.notes.search('100_').map((n) => n.id)).toHaveLength(0) // 字面 _ 不通配
   })
 })

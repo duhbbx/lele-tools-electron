@@ -36,6 +36,7 @@ watch(searchText, () => {
     return
   }
   searchTimer = setTimeout(async () => {
+    if (q !== searchText.value.trim()) return
     try {
       searchResults.value = (await window.api?.notes?.search?.(q)) ?? []
     } catch (e) {
@@ -53,11 +54,11 @@ async function refresh(): Promise<void> {
   try {
     folders.value = (await window.api?.notes?.folders?.list?.()) ?? []
     notes.value = (await window.api?.notes?.list?.()) ?? []
+    if (searchResults.value !== null && searchText.value.trim()) {
+      searchResults.value = (await window.api?.notes?.search?.(searchText.value.trim())) ?? []
+    }
   } catch (e) {
     console.warn('[NotesTree] refresh error', e)
-  }
-  if (searchResults.value !== null && searchText.value.trim()) {
-    searchResults.value = (await window.api?.notes?.search?.(searchText.value.trim())) ?? []
   }
 }
 void refresh()
