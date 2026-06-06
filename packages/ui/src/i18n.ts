@@ -46,7 +46,6 @@ const dict: Record<string, Record<Locale, string>> = {
   'crm.title': { zh: 'CRM', en: 'CRM' },
   'crm.contacts': { zh: '干系人', en: 'Contacts' },
   'crm.projects': { zh: '项目', en: 'Projects' },
-  'crm.addClient': { zh: '新建客户', en: 'Add client' },
   'crm.company': { zh: '公司', en: 'Company' },
   'crm.person': { zh: '个人', en: 'Person' },
   'crm.confirmDelete': { zh: '确认删除?', en: 'Confirm?' },

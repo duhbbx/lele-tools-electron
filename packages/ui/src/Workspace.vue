@@ -6,24 +6,18 @@ import AiChatPanel from './components/AiChatPanel.vue'
 import SettingsDialog from './components/SettingsDialog.vue'
 import SideNav from './components/SideNav.vue'
 import ToolTabs from './components/ToolTabs.vue'
-import ContactEditor from './components/crm/ContactEditor.vue'
-import ProjectEditor from './components/crm/ProjectEditor.vue'
 
 export interface TabDesc {
-  /** Unique key: tool:<toolId> | crm-contact:<id> | crm-project:<id> */
+  /** Unique key: tool:<toolId> */
   key: string
-  kind: 'tool' | 'crm-contact' | 'crm-project'
-  /** toolId for tool tabs; numeric id (as string) for crm tabs */
+  /** tool id */
   refId: string
-  /** Display name for crm tabs; tool tabs use registry name */
-  title?: string
 }
 
 const tabs = ref<TabDesc[]>([])
 const active = ref<string | null>(null)
 /** key → loaded component (filled after async load) */
 const comps = shallowRef<Record<string, Component>>({})
-const navRef = ref<InstanceType<typeof SideNav> | null>(null)
 const showSettings = ref(false)
 const showAi = ref(false)
 
@@ -33,38 +27,19 @@ onMounted(() => {
   })
 })
 
-// ToolContext: only when active tab is a tool tab
 const toolContext = computed(() => {
-  const tab = active.value ? tabs.value.find((t) => t.key === active.value) : null
-  if (!tab || tab.kind !== 'tool') return undefined
+  const tab = active.value ? tabs.value.find((x) => x.key === active.value) : null
+  if (!tab) return undefined
   const meta = toolById(tab.refId)
   return meta ? `User is on tool "${meta.name.en} / ${meta.name.zh}"` : undefined
 })
 
-// Display array consumed by ToolTabs
 const tabDisplay = computed(() =>
   tabs.value.map((tab) => {
-    if (tab.kind === 'tool') {
-      const meta = toolById(tab.refId)
-      return {
-        key: tab.key,
-        title: meta?.name[locale.value] ?? tab.refId,
-        icon: meta?.icon ?? '',
-      }
-    }
-    if (tab.kind === 'crm-contact') {
-      return { key: tab.key, title: tab.title ?? tab.refId, icon: '👤' }
-    }
-    // crm-project
-    return { key: tab.key, title: tab.title ?? tab.refId, icon: '📁' }
+    const meta = toolById(tab.refId)
+    return { key: tab.key, title: meta?.name[locale.value] ?? tab.refId, icon: meta?.icon ?? '' }
   }),
 )
-
-function resolveComp(tab: TabDesc): Component | undefined {
-  if (tab.kind === 'tool') return comps.value[tab.key]
-  if (tab.kind === 'crm-contact') return ContactEditor
-  return ProjectEditor
-}
 
 async function openTool(toolId: string): Promise<void> {
   const meta = toolById(toolId)
@@ -74,56 +49,32 @@ async function openTool(toolId: string): Promise<void> {
     const mod = await meta.load()
     comps.value = { ...comps.value, [key]: mod.default }
   }
-  if (!tabs.value.find((t) => t.key === key)) {
-    tabs.value = [...tabs.value, { key, kind: 'tool', refId: toolId }]
+  if (!tabs.value.find((x) => x.key === key)) {
+    tabs.value = [...tabs.value, { key, refId: toolId }]
   }
   active.value = key
   void window.api?.recents?.touch?.(toolId)
 }
 
-function openCrm(kind: 'crm-contact' | 'crm-project', refId: number, title: string): void {
-  const key = `${kind}:${refId}`
-  const existing = tabs.value.find((t) => t.key === key)
-  if (existing) {
-    existing.title = title
-    active.value = key
-    return
-  }
-  tabs.value = [...tabs.value, { key, kind, refId: String(refId), title }]
-  active.value = key
-}
-
 function close(key: string): void {
-  tabs.value = tabs.value.filter((t) => t.key !== key)
+  tabs.value = tabs.value.filter((x) => x.key !== key)
   if (active.value === key) active.value = tabs.value[tabs.value.length - 1]?.key ?? null
 }
 
 function reorder(fromKey: string, toKey: string): void {
   const arr = [...tabs.value]
-  const fromIdx = arr.findIndex((t) => t.key === fromKey)
-  const toIdx = arr.findIndex((t) => t.key === toKey)
+  const fromIdx = arr.findIndex((x) => x.key === fromKey)
+  const toIdx = arr.findIndex((x) => x.key === toKey)
   if (fromIdx === -1 || toIdx === -1) return
   const [item] = arr.splice(fromIdx, 1)
   arr.splice(toIdx, 0, item!)
   tabs.value = arr
 }
-
-function onTabRename(tab: TabDesc, newTitle: string): void {
-  tab.title = newTitle
-  navRef.value?.refreshCrm?.()
-}
-
-function onTabRemoved(tab: TabDesc): void {
-  close(tab.key)
-  navRef.value?.refreshCrm?.()
-}
-
-defineExpose({ openCrm })
 </script>
 
 <template>
   <div class="workspace" :class="{ 'with-ai': showAi }">
-    <SideNav ref="navRef" @open="openTool" @open-crm="openCrm" />
+    <SideNav @open="openTool" />
     <div class="main">
       <div class="tabbar-row">
         <ToolTabs class="grow" :tabs="tabDisplay" :active="active" @activate="active = $event" @close="close" @reorder="reorder" />
@@ -132,12 +83,7 @@ defineExpose({ openCrm })
       <div class="body">
         <div v-if="!tabs.length" class="welcome">{{ t('welcome.hint') }}</div>
         <div v-for="tab in tabs" v-show="tab.key === active" :key="tab.key" class="pane">
-          <component
-            :is="resolveComp(tab)"
-            v-bind="tab.kind === 'tool' ? {} : { refId: Number(tab.refId) }"
-            @rename="onTabRename(tab, $event)"
-            @removed="onTabRemoved(tab)"
-          />
+          <component :is="comps[tab.key]" />
         </div>
       </div>
     </div>

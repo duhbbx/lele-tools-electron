@@ -3,14 +3,8 @@ import { computed, ref } from 'vue'
 import { CATEGORY_LABEL, CATEGORY_ORDER } from '../registry'
 import { locale, t } from '../i18n'
 import { TOOLS } from '../tools'
-import CrmTree from './CrmTree.vue'
 
-const emit = defineEmits<{
-  open: [toolId: string]
-  'open-crm': [kind: 'crm-contact' | 'crm-project', refId: number, title: string]
-}>()
-
-const crmTree = ref<InstanceType<typeof CrmTree> | null>(null)
+const emit = defineEmits<{ open: [toolId: string] }>()
 
 const query = ref('')
 
@@ -32,12 +26,6 @@ const grouped = computed(() =>
     tools: filtered.value.filter((m) => m.category === c),
   })).filter((g) => g.tools.length > 0),
 )
-
-function refreshCrm(): void {
-  void crmTree.value?.refresh()
-}
-
-defineExpose({ refreshCrm })
 </script>
 
 <template>
@@ -50,7 +38,6 @@ defineExpose({ refreshCrm })
           <span class="icon">{{ m.icon }}</span>{{ m.name[locale] }}
         </button>
       </template>
-      <CrmTree ref="crmTree" @open="(kind, id, name) => emit('open-crm', kind, id, name)" />
     </div>
   </nav>
 </template>
