@@ -26,6 +26,6 @@
     "vitest": "^3.0.5"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["electron", "esbuild", "better-sqlite3", "better-sqlite3-node"]
+    "onlyBuiltDependencies": ["electron", "esbuild", "better-sqlite3", "better-sqlite3-node", "onnxruntime-node", "sharp"]
   }
 }
