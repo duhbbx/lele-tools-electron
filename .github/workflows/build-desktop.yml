@@ -1,0 +1,104 @@
+name: build-desktop
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macOS：只构建 Apple Silicon（M 系）dmg + zip。Intel Mac 用户可走 Rosetta。
+          - { name: mac-arm64, os: macos-latest, eb_args: '--mac --arm64', npm_arch: arm64 }
+    runs-on: ${{ matrix.os }}
+    env:
+      # electron-builder 在 pnpm monorepo 下需要 hoisted 布局：默认软链会让原生依赖
+      # 指向 app 目录之外，触发 "must be under appDir"。
+      NPM_CONFIG_NODE_LINKER: hoisted
+      npm_config_arch: ${{ matrix.npm_arch }}
+      npm_config_target_arch: ${{ matrix.npm_arch }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # node-gyp 在 Python ≥3.12 缺 distutils；固定 3.11 以稳定重建 better-sqlite3
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # tag push 时把 apps/desktop/package.json 的 version 同步成 git tag（去掉 v 前缀），
+      # 让产物文件名 ${productName}-${version}-… 跟 tag 对齐。手动触发时 noop。
+      - name: Sync version from tag
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          node -e "const f='apps/desktop/package.json';const p=require('./'+f);p.version='$VER';require('fs').writeFileSync(f,JSON.stringify(p,null,2)+'\n')"
+          echo "synced apps/desktop version → $VER"
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm --filter @lele/desktop typecheck
+
+      - name: Build (electron-vite)
+        run: pnpm --filter @lele/desktop exec electron-vite build
+
+      - name: Rebuild native modules for Electron ABI
+        run: pnpm --filter @lele/desktop exec electron-builder install-app-deps --arch=${{ matrix.npm_arch }}
+
+      # macOS 签名 & 公证：5 个 secret 齐全时启用，缺任何一个就降级为「不签」（仍出 dmg）。
+      # 这样 fork / 未配 secret 的分支构建不会失败；配齐后无需改 workflow 自动生效。
+      #   - APPLE_CSC_LINK / APPLE_CSC_KEY_PASSWORD：开发者「Developer ID Application」证书 .p12（base64）+ 密码
+      #   - APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID：notarytool 上传公证用
+      - name: Package installers
+        shell: bash
+        env:
+          CSC_LINK: ${{ secrets.APPLE_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.APPLE_CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          EXTRA=""
+          if [[ -n "$CSC_LINK" && -n "$APPLE_ID" && -n "$APPLE_TEAM_ID" ]]; then
+            echo "::notice::mac signing & notarize enabled (teamId=$APPLE_TEAM_ID)"
+            # 覆盖 yml 里 identity: null，让 electron-builder 用 CSC_LINK 的证书签；
+            # notarize.teamId 设上后会自动调 notarytool（需 APPLE_ID / APP_SPECIFIC_PASSWORD env）。
+            EXTRA="-c.mac.identity= -c.mac.notarize.teamId=$APPLE_TEAM_ID"
+          else
+            echo "::warning::mac secrets 未配齐，产出未签 dmg（安装时 Gatekeeper 会拦）"
+          fi
+          pnpm --filter @lele/desktop exec electron-builder ${{ matrix.eb_args }} $EXTRA --publish never
+
+      # 手动 / 分支触发：产物存为 Actions artifact，可在 run 页面下载
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lele-tools-${{ matrix.name }}
+          path: |
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*.zip
+          if-no-files-found: ignore
+
+      # tag v* 触发：挂到对应 GitHub Release
+      - name: Attach to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*.zip

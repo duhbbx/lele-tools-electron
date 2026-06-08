@@ -62,6 +62,32 @@ const api: WindowApi = {
     createIssue: (fullName: string, title: string, body: string) =>
       ipcRenderer.invoke('github:create-issue', fullName, title, body),
   },
+  issueMover: {
+    instances: {
+      list: () => ipcRenderer.invoke('issueMover:instances:list'),
+      get: (id: number) => ipcRenderer.invoke('issueMover:instances:get', id),
+      create: (name: string) => ipcRenderer.invoke('issueMover:instances:create', name),
+      rename: (id: number, name: string) => ipcRenderer.invoke('issueMover:instances:rename', id, name),
+      remove: (id: number) => ipcRenderer.invoke('issueMover:instances:remove', id),
+    },
+    repos: {
+      listByInstance: (instanceId: number) =>
+        ipcRenderer.invoke('issueMover:repos:listByInstance', instanceId),
+      add: (instanceId: number, r) => ipcRenderer.invoke('issueMover:repos:add', instanceId, r),
+      update: (id: number, r) => ipcRenderer.invoke('issueMover:repos:update', id, r),
+      remove: (id: number) => ipcRenderer.invoke('issueMover:repos:remove', id),
+      pull: (id: number, full?: boolean) => ipcRenderer.invoke('issueMover:repos:pull', id, full),
+    },
+    issues: {
+      listByRepo: (repoId: number) => ipcRenderer.invoke('issueMover:issues:listByRepo', repoId),
+      listByInstance: (instanceId: number, kind) =>
+        ipcRenderer.invoke('issueMover:issues:listByInstance', instanceId, kind),
+      migrate: (sourceIssueId: number) =>
+        ipcRenderer.invoke('issueMover:issues:migrate', sourceIssueId),
+      setExplain: (id: number, text: string) =>
+        ipcRenderer.invoke('issueMover:issues:setExplain', id, text),
+    },
+  },
   notes: {
     folders: {
       list: () => ipcRenderer.invoke('notes:folders:list'),

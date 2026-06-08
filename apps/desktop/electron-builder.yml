@@ -10,11 +10,21 @@ asarUnpack:
   - '**/*.node'
 npmRebuild: true
 
+# ── macOS 签名 / 公证策略（同 db-tool）──
+#   - hardenedRuntime + entitlements 始终开（不签时无害；签 / 公证时 Apple 强制要求）
+#   - identity: null 是「无 CSC_LINK 时跳过签名」的兜底；CI 在 secret 齐时用 -c.mac.identity= 覆盖
+#   - notarize 由 CI 在 5 个 APPLE_* secret 齐全时用 -c.mac.notarize.teamId= 打开
+# 未配 secret 的本地 / 分支构建照常出 dmg（未签），配齐 secret 自动签 + 公证。
 mac:
   category: public.app-category.developer-tools
   target:
     - dmg
     - zip
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  identity: null
 win:
   target:
     - nsis

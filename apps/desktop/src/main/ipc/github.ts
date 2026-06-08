@@ -14,7 +14,7 @@ const GH_HEADERS = {
 /** Lazy, cached GitHub token from local gh CLI */
 let _cachedToken: string | null = null
 
-async function getToken(): Promise<string> {
+export async function getToken(): Promise<string> {
   if (_cachedToken) return _cachedToken
   try {
     const { stdout } = await execFile('gh', ['auth', 'token'])

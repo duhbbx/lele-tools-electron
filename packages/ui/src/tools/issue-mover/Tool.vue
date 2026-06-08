@@ -1,182 +1,160 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue'
-import type { GithubIssuePreview, GithubRepoInfo } from '@lele/shared-types'
+import { onMounted, ref } from 'vue'
+import type { ImInstance } from '@lele/shared-types'
+import InstancePanel from './InstancePanel.vue'
 
-// ---------- state ----------
-const urlInput = ref('')
-const busy = ref(false)
-const fetchError = ref('')
+const instances = ref<ImInstance[]>([])
+const activeId = ref<number | null>(null)
+const error = ref('')
+/** 正在重命名的实例 id（Electron 渲染层不支持 window.prompt，改内联输入） */
+const editingId = ref<number | null>(null)
+const draft = ref('')
 
-interface PreviewEntry {
-  preview: GithubIssuePreview
-  checked: boolean
-  result?: { url: string; number: number }
-  createError?: string
-}
-
-const entries = ref<PreviewEntry[]>([])
-const repos = ref<GithubRepoInfo[]>([])
-const selectedRepo = ref('')
-const reposError = ref('')
-const summary = ref('')
-
-// ---------- computed ----------
-const checkedEntries = computed(() =>
-  entries.value.filter((e) => e.checked && !e.preview.error),
-)
-
-const canMove = computed(
-  () =>
-    !busy.value &&
-    selectedRepo.value !== '' &&
-    checkedEntries.value.length > 0,
-)
-
-// ---------- methods ----------
-async function loadRepos(): Promise<void> {
-  reposError.value = ''
+async function load(keep?: number): Promise<void> {
+  error.value = ''
   try {
-    repos.value = await window.api.github.listOwnRepos()
-    if (repos.value.length > 0 && !selectedRepo.value) {
-      selectedRepo.value = repos.value[0].fullName
-    }
+    instances.value = await window.api.issueMover.instances.list()
+    if (keep != null && instances.value.some((i) => i.id === keep)) activeId.value = keep
+    else if (activeId.value == null && instances.value.length) activeId.value = instances.value[0].id
+    else if (activeId.value != null && !instances.value.some((i) => i.id === activeId.value))
+      activeId.value = instances.value[0]?.id ?? null
   } catch (e) {
-    reposError.value = e instanceof Error ? e.message : String(e)
+    error.value = e instanceof Error ? e.message : String(e)
   }
 }
 
-async function fetchIssues(): Promise<void> {
-  const lines = urlInput.value
-    .split('\n')
-    .map((l) => l.trim())
-    .filter(Boolean)
-  if (!lines.length) return
-  busy.value = true
-  fetchError.value = ''
-  entries.value = []
-  summary.value = ''
-  try {
-    for (const url of lines) {
-      const preview = await window.api.github.fetchIssue(url)
-      entries.value.push({ preview, checked: !preview.error })
-    }
-  } catch (e) {
-    fetchError.value = e instanceof Error ? e.message : String(e)
-  } finally {
-    busy.value = false
-  }
+async function createInstance(): Promise<void> {
+  const id = await window.api.issueMover.instances.create('新搬运配置')
+  await load(id)
+  activeId.value = id
+  startEdit({ id, name: '新搬运配置' } as ImInstance)
 }
 
-async function moveIssues(): Promise<void> {
-  if (!canMove.value) return
-  busy.value = true
-  summary.value = ''
-  let ok = 0
-  let fail = 0
-  for (const entry of checkedEntries.value) {
-    entry.result = undefined
-    entry.createError = undefined
-  }
-  for (const entry of checkedEntries.value) {
-    const { preview } = entry
-    const footer = `\n\n---\n> 搬运自: ${preview.url}`
-    const body = preview.body ? preview.body + footer : footer.trimStart()
-    try {
-      const res = await window.api.github.createIssue(
-        selectedRepo.value,
-        preview.title,
-        body,
-      )
-      entry.result = res
-      ok++
-    } catch (e) {
-      entry.createError = e instanceof Error ? e.message : String(e)
-      fail++
-    }
-  }
-  summary.value = `完成：成功 ${ok} / 失败 ${fail}`
-  busy.value = false
+function startEdit(inst: ImInstance): void {
+  editingId.value = inst.id
+  draft.value = inst.name
 }
 
-onMounted(loadRepos)
+async function commitEdit(inst: ImInstance): Promise<void> {
+  if (editingId.value !== inst.id) return
+  editingId.value = null
+  const name = draft.value.trim() || '未命名'
+  if (name === inst.name) return
+  await window.api.issueMover.instances.rename(inst.id, name)
+  await load(inst.id)
+}
+
+async function removeInstance(inst: ImInstance): Promise<void> {
+  if (!window.confirm(`删除「${inst.name}」？源/目标仓库与已拉取的 issue 记录会一并删除。`)) return
+  await window.api.issueMover.instances.remove(inst.id)
+  if (activeId.value === inst.id) activeId.value = null
+  await load()
+}
+
+onMounted(() => load())
 </script>
 
 <template>
-  <div class="tool-page">
-    <!-- URL 输入区 -->
-    <textarea
-      v-model="urlInput"
-      class="textarea"
-      rows="5"
-      :disabled="busy"
-      placeholder="每行一个 GitHub Issue URL，例如：&#10;https://github.com/facebook/react/issues/123"
-    />
-    <div class="row">
-      <button class="btn primary" :disabled="busy || !urlInput.trim()" @click="fetchIssues">
-        {{ busy ? '抓取中…' : '抓取' }}
-      </button>
-      <span v-if="fetchError" class="error">{{ fetchError }}</span>
-    </div>
-
-    <!-- 抓取结果列表 -->
-    <template v-if="entries.length">
-      <div
-        v-for="(entry, i) in entries"
-        :key="i"
-        class="row"
-        style="align-items: flex-start; gap: 8px"
-      >
-        <input
-          type="checkbox"
-          :checked="entry.checked"
-          :disabled="!!entry.preview.error || busy"
-          style="margin-top: 3px; flex-shrink: 0"
-          @change="entry.checked = ($event.target as HTMLInputElement).checked"
-        />
-        <div style="flex: 1; min-width: 0">
-          <div v-if="entry.preview.error" class="error">
-            {{ entry.preview.url }} — {{ entry.preview.error }}
-          </div>
-          <template v-else>
-            <span style="font-weight: 500">{{ entry.preview.title }}</span>
-            <span class="hint" style="margin-left: 8px">
-              {{ entry.preview.owner }}/{{ entry.preview.repo }}#{{ entry.preview.number }}
-            </span>
-            <span v-if="entry.result" style="margin-left: 8px; color: var(--color-success, #22c55e)">
-              ✅
-              <a :href="entry.result.url" target="_blank" rel="noopener">#{{ entry.result.number }}</a>
-            </span>
-            <span v-else-if="entry.createError" class="error" style="margin-left: 8px">
-              ❌ {{ entry.createError }}
-            </span>
-          </template>
-        </div>
+  <div class="im-root">
+    <aside class="im-side">
+      <div class="im-side-head">
+        <span>搬运配置</span>
+        <button class="btn primary sm" @click="createInstance">＋ 新建</button>
       </div>
-    </template>
-
-    <!-- 目标仓库行 -->
-    <div class="row">
-      <label style="flex-shrink: 0">目标仓库</label>
-      <select v-model="selectedRepo" class="select" :disabled="busy || !repos.length" style="flex: 1; min-width: 0">
-        <option v-if="!repos.length" value="">（加载中…）</option>
-        <option
-          v-for="r in repos"
-          :key="r.fullName"
-          :value="r.fullName"
+      <p v-if="error" class="error" style="padding: 0 10px">{{ error }}</p>
+      <ul class="im-list">
+        <li
+          v-for="inst in instances"
+          :key="inst.id"
+          class="im-item"
+          :class="{ active: inst.id === activeId }"
+          @click="activeId = inst.id"
+          @dblclick="startEdit(inst)"
         >
-          {{ r.fullName }}{{ r.private ? ' 🔒' : '' }}
-        </option>
-      </select>
-      <button class="btn" :disabled="busy" @click="loadRepos">刷新</button>
-      <span v-if="reposError" class="error">{{ reposError }}</span>
-    </div>
-
-    <!-- 搬运按钮 -->
-    <div class="row">
-      <button class="btn primary" :disabled="!canMove" @click="moveIssues">
-        搬运 {{ checkedEntries.length }} 条
-      </button>
-      <span v-if="summary" class="hint">{{ summary }}</span>
-    </div>
+          <input
+            v-if="editingId === inst.id"
+            v-model="draft"
+            class="input name-edit"
+            :ref="(el) => el && (el as HTMLInputElement).focus()"
+            @click.stop
+            @keyup.enter="commitEdit(inst)"
+            @keyup.esc="editingId = null"
+            @blur="commitEdit(inst)"
+          />
+          <span v-else class="name">{{ inst.name }}</span>
+          <span class="ops">
+            <button title="重命名" @click.stop="startEdit(inst)">✏️</button>
+            <button title="删除" @click.stop="removeInstance(inst)">🗑️</button>
+          </span>
+        </li>
+      </ul>
+      <p v-if="!instances.length" class="hint" style="padding: 8px 12px">
+        还没有搬运配置，点「新建」创建一个。
+      </p>
+    </aside>
+    <main class="im-content">
+      <InstancePanel v-if="activeId != null" :key="activeId" :instance-id="activeId" />
+      <div v-else class="im-empty">选择或新建一个搬运配置</div>
+    </main>
   </div>
 </template>
+
+<style scoped lang="scss">
+.im-root {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  height: 100%;
+  min-height: 0;
+}
+.im-side {
+  border-right: 1px solid var(--border);
+  background: var(--bg-soft);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+
+  .im-side-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    font-weight: 600;
+  }
+  .btn.sm { padding: 2px 8px; font-size: 12px; }
+}
+.im-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.im-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  &:hover { background: var(--bg-hover); }
+  &.active { background: var(--bg-hover); color: var(--accent); }
+  .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .name-edit { flex: 1; min-width: 0; padding: 2px 6px; font-size: 13px; }
+  .ops button {
+    border: 0;
+    background: none;
+    cursor: pointer;
+    opacity: 0;
+    font-size: 12px;
+  }
+  &:hover .ops button { opacity: 0.7; }
+}
+.im-content {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.im-empty {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  color: var(--fg-dim);
+}
+</style>

@@ -82,6 +82,88 @@ export interface GithubBridge {
   createIssue(fullName: string, title: string, body: string): Promise<{ url: string; number: number }>
 }
 
+// ── Issue 搬运（instance 化：多源仓库 → 一个目标仓库，issue 拉到本地 sqlite） ──
+
+export type ImRepoKind = 'source' | 'target'
+
+/** 一个搬运配置 = 一个实例（一组源仓库 + 一个目标仓库） */
+export interface ImInstance {
+  id: number
+  name: string
+  createdAt: number
+  updatedAt: number
+}
+
+/** 实例下的仓库；kind=source 可多个，kind=target 至多一个 */
+export interface ImRepo {
+  id: number
+  instanceId: number
+  kind: ImRepoKind
+  owner: string
+  name: string
+  /** 该仓库的 GitHub PAT；源仓库（公开库）可留空走 gh CLI / 匿名，目标仓库需写权限 */
+  token: string
+  /** 上次成功拉取的时间戳（ms）；增量拉取用作 GitHub API 的 since，0=从未拉过/将全量 */
+  lastPulledAt: number
+  createdAt: number
+}
+
+/** 一条 issue 记录（源仓库与目标仓库的 issue 都进这张表） */
+export interface ImIssue {
+  id: number
+  instanceId: number
+  repoId: number
+  kind: ImRepoKind
+  /** 远端 issue 编号 */
+  number: number
+  title: string
+  body: string
+  state: 'open' | 'closed'
+  /** issue 链接 */
+  htmlUrl: string
+  /** 源 issue：是否已搬运到目标库 */
+  migrated: boolean
+  /** 目标 issue：由哪条源 im_issues.id 搬来（我们建的才有，远端原有的为 null） */
+  sourceIssueId: number | null
+  /** AI 解读（缓存，空串=未解读过）；重新拉取不覆盖 */
+  aiExplain: string
+  remoteCreatedAt: number
+  fetchedAt: number
+}
+
+export interface ImRepoInput {
+  kind: ImRepoKind
+  owner: string
+  name: string
+  token?: string
+}
+
+export interface IssueMoverBridge {
+  instances: {
+    list(): Promise<ImInstance[]>
+    get(id: number): Promise<ImInstance | null>
+    create(name: string): Promise<number>
+    rename(id: number, name: string): Promise<void>
+    remove(id: number): Promise<void>
+  }
+  repos: {
+    listByInstance(instanceId: number): Promise<ImRepo[]>
+    add(instanceId: number, r: ImRepoInput): Promise<number>
+    update(id: number, r: { owner: string; name: string; token: string }): Promise<void>
+    remove(id: number): Promise<void>
+    /** 拉取该仓库远端 issue → upsert 落库（默认增量，full=true 强制全量）；失败 ok=false（不 reject） */
+    pull(id: number, full?: boolean): Promise<{ ok: boolean; count?: number; incremental?: boolean; error?: string }>
+  }
+  issues: {
+    listByRepo(repoId: number): Promise<ImIssue[]>
+    listByInstance(instanceId: number, kind: ImRepoKind): Promise<ImIssue[]>
+    /** 把某条源 issue 在目标仓库真建一条 issue，回写映射并标记已搬运；失败 ok=false（不 reject） */
+    migrate(sourceIssueId: number): Promise<{ ok: boolean; url?: string; number?: number; error?: string }>
+    /** 缓存 AI 解读到该 issue（渲染层流式生成完成后落库） */
+    setExplain(id: number, text: string): Promise<void>
+  }
+}
+
 export interface NoteFolder { id: number; parentId: number | null; name: string; createdAt: number }
 export interface NoteListItem { id: number; folderId: number | null; title: string; updatedAt: number }
 export interface Note { id: number; folderId: number | null; title: string; content: string; createdAt: number; updatedAt: number }
@@ -163,6 +245,7 @@ export interface WindowApi {
   chats: ChatsBridge
   menu: MenuBridge
   github: GithubBridge
+  issueMover: IssueMoverBridge
   notes: NotesBridge
   plugin: PluginBridge
 }

@@ -3,6 +3,7 @@ import { BrowserWindow, app, shell } from 'electron'
 import { closeDb, getDb } from './db/sqlite'
 import { registerAiIpc } from './ipc/ai'
 import { registerGithubIpc } from './ipc/github'
+import { registerIssueMoverIpc } from './ipc/issueMover'
 import { registerNotesIpc, registerNotesProtocol } from './ipc/notes'
 import { registerStoreIpc } from './ipc/store'
 import { setupMenu } from './menu'
@@ -46,6 +47,7 @@ app.whenReady().then(() => {
   registerStoreIpc()
   registerAiIpc()
   registerGithubIpc()
+  registerIssueMoverIpc()
   registerNotesIpc()
   registerNotesProtocol()
   registerPluginIpc({ getDb })
